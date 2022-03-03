@@ -8,7 +8,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
     setuptools.setup(
         name="membank",
-        version="0.2.1",
+        version="0.2.2",
         author="Juris Kaminskis",
         author_email="juris.kaminskis@gmail.com",
         description="A library to handle persistent memory",
@@ -26,6 +26,6 @@ with open("README.md", "r", encoding="utf-8") as fh:
         "Operating System :: OS Independent",
         "Topic :: Database",
         ],
-        packages=setuptools.find_packages(where="membank"),
+        packages=["membank"],
         python_requires=">=3.8",
 )
