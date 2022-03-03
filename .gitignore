@@ -1,0 +1,12 @@
+# Ignore test artifacts
+test_database.db
+
+# Ignore vim swap files
+*.swp
+
+# Ignore python artifacts
+__pycache__
+membank.egg-info
+dist
+.tox
+env
