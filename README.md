@@ -5,19 +5,23 @@ Provide interface to database storage that automates heavy lifting of database s
 ## quick intro
 ### add items to persistent storage
 ```python
+from typing import NamedTuple
+
 from membank import LoadMemory
-from collections import namedtuple
+
+class Dog(NamedTuple):
+    breed: str
+    color: str = "black"
+    weight: float = 0
 
 memory = LoadMemory() # defaults to sqlite memory
-Dog = namedtuple('Dog', ['color', 'size', 'breed'])
-memory.create(Dog) # expects Python collections.namedtuple
-memory.put.dog(Dog('brown')) # stores object into database
+memory.put.dog(Dog('Puli')) # stores object into database
 dog = memory.get.dog() # retrieves first object found as namedtuple
-assert dog.color == 'brown'
+assert dog.breed == 'Puli'
 ```
 ### retrieve those after
 ```python
-memory = LoadMemory() # to make this work in new process, use something else than sqlite memory
+memory = LoadMemory() # to make this work in new process, don't use sqlite memory
 dog = memory.get.dog()
-assert dog.color == 'brown'
+assert dog.color == 'black'
 ```

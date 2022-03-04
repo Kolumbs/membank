@@ -8,7 +8,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
     setuptools.setup(
         name="membank",
-        version="0.2.2",
+        version="0.2.5",
         author="Juris Kaminskis",
         author_email="juris.kaminskis@gmail.com",
         description="A library to handle persistent memory",
@@ -27,5 +27,6 @@ with open("README.md", "r", encoding="utf-8") as fh:
         "Topic :: Database",
         ],
         packages=["membank"],
+        install_requires=["alembic", "sqlalchemy"],
         python_requires=">=3.8",
 )

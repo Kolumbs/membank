@@ -1,6 +1,7 @@
 """
 Tests for membank.interface main API for library
 """
+import datetime
 from typing import NamedTuple
 import os
 from unittest import TestCase
@@ -31,6 +32,7 @@ class Transaction(NamedTuple):
     """
     amount: float
     description: str
+    timestamp: datetime.datetime
     id: str = ""
 
     def add_id(self):
@@ -56,18 +58,18 @@ class DynamicFields(TestCase):
     def test(self):
         """dynamic field must generate id"""
         memory = membank.LoadMemory()
-        memory.create(Transaction)
-        booking = Transaction(50, "payment for buffer")
-        memory.put.transaction(booking)
+        booking = Transaction(50, "payment for buffer", datetime.datetime.now())
+        memory.put(booking)
         new_booking = memory.get.transaction()
         self.assertEqual(booking.add_id(), new_booking.id)
-        memory.put.transaction(booking)
+        self.assertEqual(booking.timestamp, new_booking.timestamp)
+        memory.put(booking)
 
     def test_wrong_input(self):
         """dynamic field with wrong input"""
         memory = membank.LoadMemory()
         with self.assertRaises(membank.GeneralMemoryError):
-            memory.create(WrongDynamic)
+            memory.put(WrongDynamic)
 
 
 class CreateRead(TestCase):
@@ -78,23 +80,22 @@ class CreateRead(TestCase):
     def test(self):
         """read and create memory"""
         memory = membank.LoadMemory()
-        memory.create(Dog)
-        old_dog = Dog("red")
-        memory.put.dog(old_dog)
-        memory.put.dog(old_dog) # puts are idempotent
+        dog = Dog("red")
+        memory.put(dog)
+        memory.put(dog) # puts are idempotent
         new_dog = memory.get.dog()
+        memory.put(new_dog) # one can put the got thing back
         for i in ["breed", "color", "weight"]:
-            self.assertEqual(getattr(old_dog, i), getattr(new_dog, i))
+            self.assertEqual(getattr(dog, i), getattr(new_dog, i))
         self.assertTrue(new_dog.id)
 
     def test_file_path_absolute(self):
         """create sqlite with file path"""
         cwd = os.getcwd()
-        memory = membank.LoadMemory(f"sqlite://{cwd}/test_database.db")
+        memory = membank.LoadMemory(f"sqlite://{cwd}/tests/test_database.db")
         memory.reset()
-        memory.create(Dog)
         old_dog = Dog("red")
-        memory.put.dog(old_dog)
+        memory.put(old_dog)
         self.assertTrue(memory)
         new_dog = memory.get.dog()
         for i in ["breed", "color", "weight"]:
@@ -124,22 +125,17 @@ class LoadMemoryErrorHandling(TestCase):
             membank.LoadMemory(url="sqlite://www.zoozl.net/gibberish")
 
 
-class CreateMemoryErrorHandling(TestCase):
+class PutMemoryErrorHandling(TestCase):
     """
-    Handle errors on LoadMemory.create function
+    Handle errors on LoadMemory.put function
     """
 
     def test_wrong_input(self):
-        """input should fail if not namedtuple style"""
+        """input should fail if not namedtuple instance"""
         memory = membank.LoadMemory()
         with self.assertRaises(membank.interface.GeneralMemoryError):
-            memory.create("blblbl")
+            memory.put("blblbl")
         with self.assertRaises(membank.interface.GeneralMemoryError):
-            memory.create(UnsupportedType)
-
-    def test_create_duplicate(self):
-        """creating duplicate must fail"""
-        memory = membank.LoadMemory()
-        memory.create(Dog)
+            memory.put(UnsupportedType)
         with self.assertRaises(membank.interface.GeneralMemoryError):
-            memory.create(Dog)
+            memory.put(Dog)
