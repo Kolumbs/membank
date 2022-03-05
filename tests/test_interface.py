@@ -1,8 +1,9 @@
 """
 Tests for membank.interface main API for library
 """
+import dataclasses as data
+from dataclasses import dataclass
 import datetime
-from typing import NamedTuple
 import os
 from unittest import TestCase
 
@@ -10,37 +11,41 @@ import membank
 
 
 # Test tables
-class Dog(NamedTuple):
+@dataclass
+class Dog():
     """
     Simple example from README
     """
     breed: str
     color: str = "black"
-    weight: float = 0
+    weight: float = 0.0
 
 
-class UnsupportedType(NamedTuple):
+@dataclass
+class UnsupportedType():
     """
     Example with unsupported type
     """
     done: Dog
 
 
-class Transaction(NamedTuple):
+@dataclass
+class Transaction():
     """
     Example with pre post handling
     """
     amount: float
     description: str
     timestamp: datetime.datetime
-    id: str = ""
+    id: str = data.field(default="", metadata={"automake": "add_id"})
 
     def add_id(self):
         """ads unique id to transaction"""
         return f"special_id:{self.description}"
 
 
-class WrongDynamic(NamedTuple):
+@dataclass
+class WrongDynamic():
     """
     Example with wrong dynamic field
     """
@@ -77,16 +82,22 @@ class CreateRead(TestCase):
     Create simple memory structure, add item and get it back
     """
 
+    def assert_equal(self, item1, item2):
+        """asserts two dogs are equal"""
+        for i in ["breed", "color", "weight"]:
+            self.assertEqual(getattr(item1, i), getattr(item2, i))
+        self.assertIn(str(item1)[:-1], str(item2))
+
     def test(self):
         """read and create memory"""
         memory = membank.LoadMemory()
-        dog = Dog("red")
+        dog = Dog("Puli")
         memory.put(dog)
         memory.put(dog) # puts are idempotent
         new_dog = memory.get.dog()
+        self.assert_equal(dog, new_dog)
         memory.put(new_dog) # one can put the got thing back
-        for i in ["breed", "color", "weight"]:
-            self.assertEqual(getattr(dog, i), getattr(new_dog, i))
+        self.assert_equal(dog, new_dog)
         self.assertTrue(new_dog.id)
 
     def test_file_path_absolute(self):
@@ -123,6 +134,8 @@ class LoadMemoryErrorHandling(TestCase):
             membank.LoadMemory(url="berkeleydb://:memory:")
         with self.assertRaises(membank.interface.GeneralMemoryError):
             membank.LoadMemory(url="sqlite://www.zoozl.net/gibberish")
+        with self.assertRaises(membank.interface.GeneralMemoryError):
+            membank.LoadMemory(url=dict(id="path"))
 
 
 class PutMemoryErrorHandling(TestCase):

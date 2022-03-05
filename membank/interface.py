@@ -1,9 +1,9 @@
 """
 Defines interface class and functions for library
 """
+import dataclasses as data
 import datetime
 import os
-import typing
 import urllib.parse
 
 from alembic.migration import MigrationContext
@@ -63,8 +63,13 @@ class Attributer():
         with self.__engine.connect() as conn:
             cursor = conn.execute(stmt).all()
         item = cursor[0] if cursor else None
-        class_result = type(self.name.capitalize(), (typing.NamedTuple,), item._asdict())
-        return class_result()
+        fields = [(i.name, i.type) for i in self.__table.c]
+        data_class = data.make_dataclass(
+            self.name.capitalize(),
+            fields,
+            frozen=True,
+        )
+        return data_class(*item)
 
 
 class MemoryBlob():
@@ -126,7 +131,10 @@ class LoadMemory():
         """
         if not url:
             url = "sqlite://:memory:"
-        url = urllib.parse.urlparse(url)
+        try:
+            url = urllib.parse.urlparse(url)
+        except AttributeError:
+            raise GeneralMemoryError(f"Url '{url}' is not valid") from AttributeError
         if url.scheme in ["sqlite"]:
             path = url.netloc + url.path
             assert_path(path, url.scheme)
@@ -153,7 +161,7 @@ class LoadMemory():
 
     def __create_table(self, table, mem):
         """
-        Adds a memory attribute. Memory attribute must resemble namedtuple
+        Adds a memory attribute. Memory attribute must be instance of dataclass
         In database words this adds a new Table
         If 'id' is not given in attributes, it is automatically added as a reference
         to be able to get back specific memory item
@@ -161,23 +169,17 @@ class LoadMemory():
         with self.__engine.connect() as conn:
             alembic = Operations(MigrationContext.configure(conn))
             try:
-                annotations = getattr(mem, "__annotations__")
-                fields = list(mem._fields)
+                fields = data.fields(mem)
             except AttributeError:
                 msg = "Creating new table requires annotated namedtuple. "
                 msg += f"Instead got {mem}"
                 raise GeneralMemoryError(msg) from AttributeError
-            for i in [i for i in dir(mem) if i.startswith("add_")]:
-                if not i[4:] in fields:
-                    msg = f"Field {i[4:]} is not defined to be used in function {i}"
-                    raise GeneralMemoryError(msg)
             cols = []
-            for name in fields:
-                col_type = annotations[name]
-                col_type = get_sql_col_type(col_type)
-                col = sa.Column(name, col_type)
+            for field in fields:
+                col_type = get_sql_col_type(field.type)
+                col = sa.Column(field.name, col_type)
                 cols.append(col)
-            if "id" not in fields:
+            if "id" not in [i.name for i in fields]:
                 cols.append(sa.Column("id", sa.Integer))
             cols.append(sa.PrimaryKeyConstraint('id'))
             cols.append(sa.Index("idx_id", "id"))
@@ -198,17 +200,18 @@ class LoadMemory():
         if isinstance(item, type):
             msg = f"Item {item} is a class but must be instance of class"
             raise GeneralMemoryError(msg)
-        msg = f"Item {item} does not resemble namedtuple instance"
+        if not data.is_dataclass(item):
+            msg = f"Item {item} must be instance of dataclass"
+            raise GeneralMemoryError(msg)
         table = getattr(item, "__class__", False)
         table = getattr(table, "__name__", False)
-        if not table:
-            raise GeneralMemoryError(msg)
         table = table.lower()
         if table not in self.__metadata.tables:
             self.__create_table(table, item)
         table = self.__metadata.tables[table]
-        for i in [i for i in dir(item) if i.startswith("add_")]:
-            item = item._replace(**{i[4:]: getattr(item, i)()})
+        for i in [i for i in data.fields(item) if i.metadata]:
+            if "automake" in i.metadata:
+                setattr(item, i.name, getattr(item, i.metadata["automake"])())
         if getattr(item, "id", False):
             stmt = sa.select(table)
             stmt = stmt.where(table.c.id == item.id)
@@ -217,7 +220,7 @@ class LoadMemory():
             if rows.first():
                 return
         stmt = table.insert()
-        stmt = stmt.values(item)
+        stmt = stmt.values(data.asdict(item))
         with self.__engine.connect() as conn:
             with conn.begin():
                 conn.execute(stmt)
