@@ -16,7 +16,7 @@ class Dog():
     weight: float = 0
 
 memory = LoadMemory() # defaults to sqlite memory
-memory.put.dog(Dog('Puli')) # stores object into database
+memory.put(Dog('Puli')) # stores object into database
 dog = memory.get.dog() # retrieves first object found
 assert dog.breed == 'Puli'
 ```
@@ -26,10 +26,9 @@ memory = LoadMemory() # to make this work in new process, don't use sqlite memor
 dog = memory.get.dog()
 assert dog.color == 'black'
 ```
-### be carefull editing returned objects
+### editing returned objects
 ```python
 dog = memory.get.dog()
-dog.breed = 'Labrador' # this will fail. you can't edit returned object from get
-dog = Dog(dataclasses.astuple(dog)) # reinitialise your object again
-dog.breed = 'Labdrador' # now you can edit
+dog.breed = 'Labdrador'
+memory.put(dog) # stores edited object back
 ```

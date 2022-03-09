@@ -2,36 +2,45 @@
 Defines interface class and functions for library
 """
 import dataclasses as data
-import datetime
 import os
 import urllib.parse
 
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 import sqlalchemy as sa
 
-
-# Mapping of Python types with SQL types
-SQL_TABLE_TYPES = {
-    float: sa.Float,
-    str: sa.String,
-    int: sa.Integer,
-    datetime.datetime: sa.DateTime,
-}
-
-def get_sql_col_type(py_type):
-    """
-    From Python data type py_type returns SQL type
-    """
-    if py_type in SQL_TABLE_TYPES:
-        return SQL_TABLE_TYPES[py_type]
-    raise GeneralMemoryError(f"Type {py_type} is not supported")
+from membank import datamapper
+from membank.datamethods import create_table, get_item, update_item
+from membank.handlers import GeneralMemoryError
 
 
-class GeneralMemoryError(Exception):
+def bundle_item(item):
     """
-    All general errors in memory interface
+    Scans metadata from item.fields and returns a dict of found items
     """
+    meta = {}
+    for i in data.fields(item):
+        if "key" in i.metadata:
+            meta["key"] = i.name
+    return meta
+
+def assert_correct_types(instance):
+    """
+    Veriffies that instance is a dataclass instance
+    Verifies that instance has all fields as per annotated types
+    Raises GeneralMemoryError otherwise
+    """
+    if isinstance(instance, type):
+        msg = f"Item {instance} is a class but must be instance of class"
+        raise GeneralMemoryError(msg)
+    if not data.is_dataclass(instance):
+        msg = f"Item {instance} must be instance of dataclass"
+        raise GeneralMemoryError(msg)
+    for field in data.fields(instance):
+        field_val = getattr(instance, field.name)
+        if not isinstance(field_val, field.type):
+            if field.type == float and isinstance(field_val, int):
+                continue
+            msg = f"Field '{field.name}' is not of type {field.type}"
+            raise GeneralMemoryError(msg)
 
 
 # pylint: disable=R0903
@@ -40,36 +49,21 @@ class Attributer():
     Wraps handling attribute calls for get
     """
 
-    def __init__(self, table, engine, metadata):
+    def __init__(self, table, engine, metadata, dataclass):
         self.__engine = engine
         self.__metadata = metadata
         self.name = table
         self.__table = None
+        self.__dataclass = dataclass
 
     def __call__(self, **kargs):
         if self.name not in self.__metadata.tables:
-            raise GeneralMemoryError(f"{self.name} is not found in memory")
+            self.__metadata.reflect(bind=self.__engine)
+            if self.name not in self.__metadata.tables:
+                return None
         self.__table = self.__metadata.tables[self.name]
-        return self.__get_call(**kargs)
-
-    def __get_call(self, **filtering):
-        """
-        Get item from SQL table
-        """
-        stmt = sa.select(self.__table)
-        if filtering:
-            for key, value in filtering.items():
-                stmt = stmt.where(getattr(self.__table.c, key) == value)
-        with self.__engine.connect() as conn:
-            cursor = conn.execute(stmt).all()
-        item = cursor[0] if cursor else None
-        fields = [(i.name, i.type) for i in self.__table.c]
-        data_class = data.make_dataclass(
-            self.name.capitalize(),
-            fields,
-            frozen=True,
-        )
-        return data_class(*item)
+        return_class = self.__dataclass.get_class(self.__table)
+        return get_item(self.__table, self.__engine, return_class, **kargs)
 
 
 class MemoryBlob():
@@ -77,18 +71,19 @@ class MemoryBlob():
     Allows to access generically put method attributes
     """
 
-    def __init__(self, engine, metadata):
+    def __init__(self, engine, metadata, dataclass):
         """
         Initialises attribute/table list
         """
         self.__attrs = {}
         self.__engine = engine
         self.__metadata = metadata
+        self.__dataclass = dataclass
 
     def __getattr__(self, name):
         if name in self.__attrs:
             return self.__attrs[name]
-        new_attr = Attributer(name, self.__engine, self.__metadata)
+        new_attr = Attributer(name, self.__engine, self.__metadata, self.__dataclass)
         self.__attrs[name] = new_attr
         return new_attr
 
@@ -150,80 +145,26 @@ class LoadMemory():
             self.__metadata = sa.MetaData()
         else:
             raise GeneralMemoryError(f"Such database type {url.scheme} is not supported")
-        self.__load_attributes()
-
-    def __load_attributes(self):
-        """
-        Loads all memory attributes
-        """
         self.__metadata.reflect(bind=self.__engine)
-        self.get = MemoryBlob(self.__engine, self.__metadata)
-
-    def __create_table(self, table, mem):
-        """
-        Adds a memory attribute. Memory attribute must be instance of dataclass
-        In database words this adds a new Table
-        If 'id' is not given in attributes, it is automatically added as a reference
-        to be able to get back specific memory item
-        """
-        with self.__engine.connect() as conn:
-            alembic = Operations(MigrationContext.configure(conn))
-            try:
-                fields = data.fields(mem)
-            except AttributeError:
-                msg = "Creating new table requires annotated namedtuple. "
-                msg += f"Instead got {mem}"
-                raise GeneralMemoryError(msg) from AttributeError
-            cols = []
-            for field in fields:
-                col_type = get_sql_col_type(field.type)
-                col = sa.Column(field.name, col_type)
-                cols.append(col)
-            if "id" not in [i.name for i in fields]:
-                cols.append(sa.Column("id", sa.Integer))
-            cols.append(sa.PrimaryKeyConstraint('id'))
-            cols.append(sa.Index("idx_id", "id"))
-            # pylint: disable=E1101
-            try:
-                alembic.create_table(table, *cols)
-            except sa.exc.OperationalError as error:
-                msg = error.args[0]
-                if "table" in msg and "already exists" in msg:
-                    msg = f"Table {table} already exists. Use change instead"
-                    raise GeneralMemoryError(msg) from None
-        self.__metadata.reflect(bind=self.__engine)
+        self.__dataclass = datamapper.Mapper(self.__engine, self.__metadata)
+        self.get = MemoryBlob(self.__engine, self.__metadata, self.__dataclass)
 
     def put(self, item):
         """
         Insert item in SQL table
         """
-        if isinstance(item, type):
-            msg = f"Item {item} is a class but must be instance of class"
-            raise GeneralMemoryError(msg)
-        if not data.is_dataclass(item):
-            msg = f"Item {item} must be instance of dataclass"
-            raise GeneralMemoryError(msg)
+        assert_correct_types(item)
         table = getattr(item, "__class__", False)
         table = getattr(table, "__name__", False)
         table = table.lower()
         if table not in self.__metadata.tables:
-            self.__create_table(table, item)
+            create_table(table, item, self.__engine)
+            self.__dataclass.put_class(table, item.__class__)
+            self.__metadata.reflect(bind=self.__engine)
         table = self.__metadata.tables[table]
-        for i in [i for i in data.fields(item) if i.metadata]:
-            if "automake" in i.metadata:
-                setattr(item, i.name, getattr(item, i.metadata["automake"])())
-        if getattr(item, "id", False):
-            stmt = sa.select(table)
-            stmt = stmt.where(table.c.id == item.id)
-            with self.__engine.connect() as conn:
-                rows = conn.execute(stmt)
-            if rows.first():
-                return
-        stmt = table.insert()
-        stmt = stmt.values(data.asdict(item))
-        with self.__engine.connect() as conn:
-            with conn.begin():
-                conn.execute(stmt)
+        meta = bundle_item(item)
+        key = meta["key"] if "key" in meta else None
+        update_item(table, self.__engine, item, key)
 
     def reset(self):
         """
@@ -231,6 +172,7 @@ class LoadMemory():
         """
         self.__metadata.drop_all(bind=self.__engine)
         self.__metadata.clear()
+        self.__dataclass = datamapper.Mapper(self.__engine, self.__metadata)
 
     def clean_all_data(self):
         """
