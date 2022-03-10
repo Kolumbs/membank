@@ -17,6 +17,7 @@ SQL_TABLE_TYPES = {
     str: sa.String,
     int: sa.Integer,
     datetime.datetime: sa.DateTime,
+    datetime.date: sa.Date,
     bytes: sa.LargeBinary
 }
 
@@ -28,20 +29,33 @@ def get_sql_col_type(py_type):
         return SQL_TABLE_TYPES[py_type]
     raise GeneralMemoryError(f"Type {py_type} is not supported")
 
-def get_item(sql_table, engine, return_class, **filtering):
+def make_stmt(sql_table, **filtering):
     """
-    Get item from table
+    Prepares SQL statement and returns it
     """
     stmt = sa.select(sql_table)
     if filtering:
         for key, value in filtering.items():
             stmt = stmt.where(getattr(sql_table.c, key) == value)
+    return stmt
+
+def get_item(sql_table, engine, return_class, **filtering):
+    """
+    Get item from table
+    """
+    stmt = make_stmt(sql_table, **filtering)
     with engine.connect() as conn:
-        cursor = conn.execute(stmt).all()
-    item = cursor[0] if cursor else None
-    if item:
-        return return_class(*item)
-    return None
+        cursor = conn.execute(stmt).first()
+    return return_class(*cursor) if cursor else None
+
+def get_all(sql_table, engine, return_class, **filtering):
+    """
+    Get all items from table
+    """
+    stmt = make_stmt(sql_table, **filtering)
+    with engine.connect() as conn:
+        cursor = conn.execute(stmt)
+        return [return_class(*i) for i in cursor]
 
 def update_item(sql_table, engine, item, key=None):
     """

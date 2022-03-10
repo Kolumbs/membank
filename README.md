@@ -23,7 +23,7 @@ assert dog.breed == 'Puli'
 ### retrieve those after
 ```python
 memory = LoadMemory() # to make this work in new process, don't use sqlite memory
-dog = memory.get.dog()
+dog = memory.get.dog() # get first found or None
 assert dog.color == 'black'
 ```
 ### editing returned objects

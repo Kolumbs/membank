@@ -8,7 +8,7 @@ import urllib.parse
 import sqlalchemy as sa
 
 from membank import datamapper
-from membank.datamethods import create_table, get_item, update_item
+from membank.datamethods import create_table, get_item, update_item, get_all
 from membank.handlers import GeneralMemoryError
 
 
@@ -87,6 +87,12 @@ class MemoryBlob():
         self.__attrs[name] = new_attr
         return new_attr
 
+    def __call__(self, memory, **kargs):
+        if memory in self.__metadata.tables:
+            table =  self.__metadata.tables[memory]
+            return_class = self.__dataclass.get_class(table)
+            return get_all(table, self.__engine, return_class, **kargs)
+        return None
 
 def assert_path(path, db_type):
     """

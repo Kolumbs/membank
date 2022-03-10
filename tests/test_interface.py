@@ -58,6 +58,24 @@ class WrongDynamic():
         return self
 
 
+class GetList(TestCase):
+    """
+    Testcase on getting list of items instead of single
+    """
+
+    def test_list(self):
+        """retrieve all items from one table"""
+        memory = membank.LoadMemory("sqlite://tests/test_database.db")
+        memory.reset()
+        for i in range(10):
+            booking = Transaction(50 + i, f"list transaction {i}")
+            memory.put(booking)
+        bookings = memory.get("transaction")
+        self.assertEqual(len(bookings), 10)
+        for i, j in enumerate(bookings):
+            self.assertEqual(j.amount, 50 + i)
+            self.assertEqual(j.description, f"list transaction {i}")
+
 class DynamicFields(TestCase):
     """
     Create memory structures with dynamic field generation
