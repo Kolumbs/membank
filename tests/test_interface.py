@@ -4,10 +4,9 @@ Tests for membank.interface main API for library
 import dataclasses as data
 from dataclasses import dataclass
 import datetime
-import os
-from unittest import TestCase
 
 import membank
+from tests.base import TestCase
 
 
 # Test tables
@@ -22,14 +21,6 @@ class Dog():
 
 
 @dataclass
-class UnsupportedType():
-    """
-    Example with unsupported type
-    """
-    done: Dog
-
-
-@dataclass
 class Transaction():
     """
     Example with pre post handling
@@ -40,22 +31,11 @@ class Transaction():
     id: str = data.field(default=None, metadata={"key": True})
 
     def __post_init__(self):
-        """ads unique id to transaction"""
+        """adds unique id to transaction"""
         if not self.timestamp:
             self.timestamp = datetime.datetime.now()
         if not self.id:
             self.id = f"special_id:{self.description}"
-
-
-@dataclass
-class WrongDynamic():
-    """
-    Example with wrong dynamic field
-    """
-
-    def add_id(self):
-        """ads unique id"""
-        return self
 
 
 class GetList(TestCase):
@@ -63,18 +43,34 @@ class GetList(TestCase):
     Testcase on getting list of items instead of single
     """
 
-    def test_list(self):
-        """retrieve all items from one table"""
-        memory = membank.LoadMemory("sqlite://tests/test_database.db")
+    def setUp(self):
+        memory = membank.LoadMemory(self.relative_path)
         memory.reset()
         for i in range(10):
             booking = Transaction(50 + i, f"list transaction {i}")
             memory.put(booking)
-        bookings = memory.get("transaction")
+        self.memory = memory
+
+    def test_list(self):
+        """retrieve all items from one table"""
+        bookings = self.memory.get("transaction")
         self.assertEqual(len(bookings), 10)
         for i, j in enumerate(bookings):
             self.assertEqual(j.amount, 50 + i)
             self.assertEqual(j.description, f"list transaction {i}")
+
+    def test_operators(self):
+        """verify that comparison operators can be used"""
+        today = datetime.datetime.now()
+        bookings = self.memory.get(*(self.memory.transaction.timestamp <= today, ))
+        self.assertEqual(len(bookings), 10)
+        for i in bookings:
+            self.assertTrue(i.timestamp <= today)
+
+    def test_missing_table(self):
+        """operators with missing table should return None"""
+        self.memory.get(self.memory.nonexisting.timestamp >= False)
+
 
 class DynamicFields(TestCase):
     """
@@ -94,6 +90,11 @@ class DynamicFields(TestCase):
     def test_wrong_input(self):
         """dynamic field with wrong input"""
         memory = membank.LoadMemory()
+        # pylint: disable=C0115,C0116
+        @dataclass
+        class WrongDynamic():
+            def add_id(self):
+                return self
         with self.assertRaises(membank.GeneralMemoryError):
             memory.put(WrongDynamic)
 
@@ -122,8 +123,7 @@ class CreateRead(TestCase):
 
     def test_file_path_absolute(self):
         """create sqlite with file path"""
-        cwd = os.getcwd()
-        memory = membank.LoadMemory(f"sqlite://{cwd}/tests/test_database.db")
+        memory = membank.LoadMemory(self.absolute_path)
         memory.reset()
         old_dog = Dog("red")
         memory.put(old_dog)
@@ -134,7 +134,7 @@ class CreateRead(TestCase):
 
     def test_file_path_relative(self):
         """create sqlite with relative file path"""
-        memory = membank.LoadMemory("sqlite://tests/test_database.db")
+        memory = membank.LoadMemory(self.relative_path)
         self.assertTrue(memory)
 
 
@@ -179,17 +179,38 @@ class PutMemoryErrorHandling(TestCase):
     Handle errors on LoadMemory.put function
     """
 
+    def setUp(self):
+        self.memory = membank.LoadMemory()
+
     def test_wrong_input(self):
         """input should fail if not namedtuple instance"""
-        memory = membank.LoadMemory()
         with self.assertRaises(membank.interface.GeneralMemoryError):
-            memory.put("blblbl")
+            self.memory.put("blblbl")
+        # pylint: disable=C0115,C0116
+        @dataclass
+        class UnsupportedType():
+            done: Dog
         with self.assertRaises(membank.interface.GeneralMemoryError):
-            memory.put(UnsupportedType)
+            self.memory.put(UnsupportedType)
         with self.assertRaises(membank.interface.GeneralMemoryError):
-            memory.put(Dog)
+            self.memory.put(Dog)
         with self.assertRaises(membank.interface.GeneralMemoryError):
-            memory.put(Dog(1))
+            self.memory.put(Dog(1))
+
+    def test_reserved_name(self):
+        """input should fail if reserved name"""
+        # pylint: disable=C0103,C0115,C0116
+        @dataclass
+        class __meta_dataclasses__():
+            id: str
+        with self.assertRaises(membank.interface.GeneralMemoryError):
+            self.memory.put(__meta_dataclasses__("ad"))
+        # pylint: disable=C0115,C0116
+        @dataclass
+        class Put():
+            id: str
+        with self.assertRaises(membank.interface.GeneralMemoryError):
+            self.memory.put(Put("ad"))
 
 
 class GetMemoryErrorHandling(TestCase):
@@ -199,5 +220,6 @@ class GetMemoryErrorHandling(TestCase):
 
     def test_none_existing_table(self):
         """input should return None if not existing table"""
-        memory = membank.LoadMemory("sqlite://tests/test_database.db")
+        memory = membank.LoadMemory(self.relative_path)
         self.assertIsNone(memory.get.thisdoesnotexist())
+        self.assertTrue(isinstance(memory.get("thisdoesnotexist"), list))

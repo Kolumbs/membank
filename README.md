@@ -25,6 +25,8 @@ assert dog.breed == 'Puli'
 memory = LoadMemory() # to make this work in new process, don't use sqlite memory
 dog = memory.get.dog() # get first found or None
 assert dog.color == 'black'
+dogs = memory.get("dog") # always returns list (empty or with items)
+assert len(dogs) >= 0
 ```
 ### editing returned objects
 ```python

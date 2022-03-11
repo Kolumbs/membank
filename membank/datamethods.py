@@ -8,7 +8,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 import sqlalchemy as sa
 
-from membank.handlers import GeneralMemoryError
+from membank.errors import GeneralMemoryError
 
 
 # Mapping of Python types with SQL types
@@ -29,14 +29,17 @@ def get_sql_col_type(py_type):
         return SQL_TABLE_TYPES[py_type]
     raise GeneralMemoryError(f"Type {py_type} is not supported")
 
-def make_stmt(sql_table, **filtering):
+def make_stmt(sql_table, *filtering, **matching):
     """
     Prepares SQL statement and returns it
     """
     stmt = sa.select(sql_table)
-    if filtering:
-        for key, value in filtering.items():
+    if matching:
+        for key, value in matching.items():
             stmt = stmt.where(getattr(sql_table.c, key) == value)
+    if filtering:
+        for item in filtering:
+            stmt = stmt.where(item)
     return stmt
 
 def get_item(sql_table, engine, return_class, **filtering):
@@ -48,11 +51,10 @@ def get_item(sql_table, engine, return_class, **filtering):
         cursor = conn.execute(stmt).first()
     return return_class(*cursor) if cursor else None
 
-def get_all(sql_table, engine, return_class, **filtering):
+def get_from_sql(return_class, stmt, engine):
     """
-    Get all items from table
+    Get all items from table as per SQL statement
     """
-    stmt = make_stmt(sql_table, **filtering)
     with engine.connect() as conn:
         cursor = conn.execute(stmt)
         return [return_class(*i) for i in cursor]
@@ -108,3 +110,54 @@ def create_table(table, instance, engine):
             if "table" in msg and "already exists" in msg:
                 msg = f"Table {table} already exists. Use change instead"
                 raise GeneralMemoryError(msg) from None
+
+
+class FilterOperator():
+    """
+    Allows to filter memory items by expressions
+    """
+
+    def __init__(self, name, meta):
+        if name in meta.tables:
+            self.sql_table = meta.tables[name]
+        else:
+            self.sql_table = None
+        self.name = name
+        self.column = False
+        self.operator = False
+
+    def __lt__(self, other):
+        """operations with <"""
+        op = self.column < other if self.operator else None
+        return self.sql_table, op
+
+    def __le__(self, other):
+        """operations with <="""
+        op = self.column <= other if self.operator else None
+        return self.sql_table, op
+
+    def __eq__(self, other):
+        """operations with =="""
+        op = self.column == other if self.operator else None
+        return self.sql_table, op
+
+    def __ne__(self, other):
+        """operations with !="""
+        op = self.column != other if self.operator else None
+        return self.sql_table, op
+
+    def __gt__(self, other):
+        """operations with >"""
+        op = self.column > other if self.operator else None
+        return self.sql_table, op
+
+    def __ge__(self, other):
+        """operations with >="""
+        op = self.column >= other if self.operator else None
+        return self.sql_table, op
+
+    def __getattr__(self, name):
+        if getattr(self.sql_table, "name", False):
+            self.column = getattr(self.sql_table.c, name)
+            self.operator = True
+        return self

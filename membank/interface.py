@@ -8,8 +8,8 @@ import urllib.parse
 import sqlalchemy as sa
 
 from membank import datamapper
-from membank.datamethods import create_table, get_item, update_item, get_all
-from membank.handlers import GeneralMemoryError
+import membank.datamethods as meths
+from membank.errors import GeneralMemoryError, MemoryFilteringError
 
 
 def bundle_item(item):
@@ -63,7 +63,7 @@ class Attributer():
                 return None
         self.__table = self.__metadata.tables[self.name]
         return_class = self.__dataclass.get_class(self.__table)
-        return get_item(self.__table, self.__engine, return_class, **kargs)
+        return meths.get_item(self.__table, self.__engine, return_class, **kargs)
 
 
 class MemoryBlob():
@@ -87,12 +87,27 @@ class MemoryBlob():
         self.__attrs[name] = new_attr
         return new_attr
 
-    def __call__(self, memory, **kargs):
-        if memory in self.__metadata.tables:
-            table =  self.__metadata.tables[memory]
-            return_class = self.__dataclass.get_class(table)
-            return get_all(table, self.__engine, return_class, **kargs)
-        return None
+    def __call__(self, *instructions, **kargs):
+        filtering = []
+        previous_name = ""
+        for instruction in instructions:
+            match instruction:
+                case sql_table, sql_operation:
+                    table_name = getattr(sql_table, "name", False)
+                    if table_name:
+                        filtering.append(sql_operation)
+                    else:
+                        return []
+                case table_name:
+                    if not table_name in self.__metadata.tables:
+                        return []
+                    sql_table = self.__metadata.tables[table_name]
+            if previous_name and previous_name != table_name:
+                raise MemoryFilteringError(table_name, previous_name)
+            previous_name = table_name
+        stmt = meths.make_stmt(sql_table, *filtering, **kargs)
+        return_class = self.__dataclass.get_class(sql_table)
+        return meths.get_from_sql(return_class, stmt, self.__engine)
 
 def assert_path(path, db_type):
     """
@@ -155,6 +170,12 @@ class LoadMemory():
         self.__dataclass = datamapper.Mapper(self.__engine, self.__metadata)
         self.get = MemoryBlob(self.__engine, self.__metadata, self.__dataclass)
 
+    def __getattr__(self, name):
+        """
+        Fetches comparison method
+        """
+        return meths.FilterOperator(name, self.__metadata)
+
     def put(self, item):
         """
         Insert item in SQL table
@@ -163,14 +184,17 @@ class LoadMemory():
         table = getattr(item, "__class__", False)
         table = getattr(table, "__name__", False)
         table = table.lower()
-        if table not in self.__metadata.tables:
-            create_table(table, item, self.__engine)
+        if table not in self.__metadata.tables or table == "__meta_dataclasses__":
+            if table in dir(self) or table == "__meta_dataclasses__":
+                msg = f"Memory {item} cannot be created because such name is reserved by membank"
+                raise GeneralMemoryError(msg)
+            meths.create_table(table, item, self.__engine)
             self.__dataclass.put_class(table, item.__class__)
             self.__metadata.reflect(bind=self.__engine)
         table = self.__metadata.tables[table]
         meta = bundle_item(item)
         key = meta["key"] if "key" in meta else None
-        update_item(table, self.__engine, item, key)
+        meths.update_item(table, self.__engine, item, key)
 
     def reset(self):
         """
