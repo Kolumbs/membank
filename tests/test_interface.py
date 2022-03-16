@@ -38,6 +38,22 @@ class Transaction():
             self.id = f"special_id:{self.description}"
 
 
+class CleanData(TestCase):
+    """
+    Testcase on clean_all_data function in Memory
+    """
+
+    def setUp(self):
+        self.memory = membank.LoadMemory()
+
+    def test(self):
+        """clean_all_data wipes data but not tables"""
+        self.memory.put(Dog("Puli"))
+        self.memory.clean_all_data()
+        self.memory.get("dog")
+        self.memory.put(Dog("Puli"))
+
+
 class GetList(TestCase):
     """
     Testcase on getting list of items instead of single

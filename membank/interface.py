@@ -91,17 +91,18 @@ class MemoryBlob():
         filtering = []
         previous_name = ""
         for instruction in instructions:
-            match instruction:
-                case sql_table, sql_operation:
-                    table_name = getattr(sql_table, "name", False)
-                    if table_name:
-                        filtering.append(sql_operation)
-                    else:
-                        return []
-                case table_name:
-                    if not table_name in self.__metadata.tables:
-                        return []
-                    sql_table = self.__metadata.tables[table_name]
+            if isinstance(instruction, tuple) and len(instruction) == 2:
+                sql_table = instruction[0]
+                table_name = getattr(sql_table, "name", False)
+                if table_name:
+                    filtering.append(instruction[1])
+                else:
+                    return []
+            else:
+                table_name = instruction
+                if not table_name in self.__metadata.tables:
+                    return []
+                sql_table = self.__metadata.tables[table_name]
             if previous_name and previous_name != table_name:
                 raise MemoryFilteringError(table_name, previous_name)
             previous_name = table_name
@@ -208,5 +209,7 @@ class LoadMemory():
         """
         Removes all data and restores memory with all tables
         """
-        self.__metadata.drop_all(bind=self.__engine)
+        tables_to_drop = dict(self.__metadata.tables)
+        tables_to_drop.pop("__meta_dataclasses__")
+        self.__metadata.drop_all(bind=self.__engine, tables=tables_to_drop.values())
         self.__metadata.create_all(bind=self.__engine)
