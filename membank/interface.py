@@ -91,18 +91,17 @@ class MemoryBlob():
         filtering = []
         previous_name = ""
         for instruction in instructions:
-            if isinstance(instruction, tuple) and len(instruction) == 2:
-                sql_table = instruction[0]
-                table_name = getattr(sql_table, "name", False)
-                if table_name:
-                    filtering.append(instruction[1])
-                else:
-                    return []
-            else:
-                table_name = instruction
-                if not table_name in self.__metadata.tables:
-                    return []
-                sql_table = self.__metadata.tables[table_name]
+            match instruction:
+                case sql_table, sql_operation:
+                    table_name = getattr(sql_table, "name", False)
+                    if table_name:
+                        filtering.append(sql_operation)
+                    else:
+                        return []
+                case table_name:
+                    if not table_name in self.__metadata.tables:
+                        return []
+                    sql_table = self.__metadata.tables[table_name]
             if previous_name and previous_name != table_name:
                 raise MemoryFilteringError(table_name, previous_name)
             previous_name = table_name
