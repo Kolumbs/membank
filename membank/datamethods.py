@@ -119,45 +119,44 @@ class FilterOperator():
 
     def __init__(self, name, meta):
         if name in meta.tables:
-            self.sql_table = meta.tables[name]
+            self.__sql_table = meta.tables[name]
         else:
-            self.sql_table = None
-        self.name = name
-        self.column = False
-        self.operator = False
+            self.__sql_table = None
+        self.__column = False
+        self.__operator = False
 
     def __lt__(self, other):
         """operations with <"""
-        op = self.column < other if self.operator else None
-        return self.sql_table, op
+        op = self.__column < other if self.__operator else None
+        return self.__sql_table, op
 
     def __le__(self, other):
         """operations with <="""
-        op = self.column <= other if self.operator else None
-        return self.sql_table, op
+        op = self.__column <= other if self.__operator else None
+        return self.__sql_table, op
 
     def __eq__(self, other):
         """operations with =="""
-        op = self.column == other if self.operator else None
-        return self.sql_table, op
+        op = self.__column == other if self.__operator else None
+        return self.__sql_table, op
 
     def __ne__(self, other):
         """operations with !="""
-        op = self.column != other if self.operator else None
-        return self.sql_table, op
+        op = self.__column != other if self.__operator else None
+        return self.__sql_table, op
 
     def __gt__(self, other):
         """operations with >"""
-        op = self.column > other if self.operator else None
-        return self.sql_table, op
+        op = self.__column > other if self.__operator else None
+        return self.__sql_table, op
 
     def __ge__(self, other):
         """operations with >="""
-        op = self.column >= other if self.operator else None
-        return self.sql_table, op
+        op = self.__column >= other if self.__operator else None
+        return self.__sql_table, op
 
     def __getattr__(self, name):
-        if getattr(self.sql_table, "name", False):
-            self.column = getattr(self.sql_table.c, name)
-            self.operator = True
+        if getattr(self.__sql_table, "name", False):
+            self.__column = getattr(self.__sql_table.c, name)
+            self.__operator = True
         return self
