@@ -37,6 +37,13 @@ class Transaction():
         if not self.id:
             self.id = f"special_id:{self.description}"
 
+@dataclass
+class Perforator():
+    """
+    Example with name attibute
+    """
+    name: str
+
 
 class CleanData(TestCase):
     """
@@ -52,6 +59,18 @@ class CleanData(TestCase):
         self.memory.clean_all_data()
         self.memory.get("dog")
         self.memory.put(Dog("Puli"))
+
+
+class Operator(TestCase):
+    """
+    Testcases on comparison operators
+    """
+
+    def test_equal(self):
+        """equality on name"""
+        memory = membank.LoadMemory(self.relative_path)
+        memory.put(Perforator("perforate"))
+        self.assertTrue(memory.get(memory.perforator.name == "perforate"))
 
 
 class GetList(TestCase):
