@@ -86,7 +86,7 @@ class Delete(TestCase):
         memory.put(booking)
         self.assertTrue(memory.get.transaction(id=booking.id))
         memory.delete(booking)
-        self.assertTrue(memory.get.transaction(id=booking.id))
+        self.assertFalse(memory.get.transaction(id=booking.id))
 
 
 class GetList(TestCase):

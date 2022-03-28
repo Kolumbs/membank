@@ -31,9 +31,15 @@ def get_sql_col_type(py_type):
 
 def make_stmt(sql_table, *filtering, **matching):
     """
-    Prepares SQL statement and returns it
+    Does select stmt
     """
     stmt = sa.select(sql_table)
+    return filter_stmt(stmt, sql_table, *filtering, **matching)
+
+def filter_stmt(stmt, sql_table, *filtering, **matching):
+    """
+    Prepares SQL statement and returns it
+    """
     if matching:
         for key, value in matching.items():
             stmt = stmt.where(getattr(sql_table.c, key) == value)
@@ -55,9 +61,11 @@ def delete_item(sql_table, engine, **matching):
     """
     Executes delete stmt
     """
-    stmt = make_stmt(sql_table, **matching)
+    stmt = sa.delete(sql_table)
+    stmt = filter_stmt(stmt, sql_table, **matching)
     with engine.connect() as conn:
         conn.execute(stmt)
+        conn.commit()
 
 def get_from_sql(return_class, stmt, engine):
     """
