@@ -42,14 +42,22 @@ def make_stmt(sql_table, *filtering, **matching):
             stmt = stmt.where(item)
     return stmt
 
-def get_item(sql_table, engine, return_class, **filtering):
+def get_item(sql_table, engine, return_class, **matching):
     """
     Get item from table
     """
-    stmt = make_stmt(sql_table, **filtering)
+    stmt = make_stmt(sql_table, **matching)
     with engine.connect() as conn:
         cursor = conn.execute(stmt).first()
     return return_class(*cursor) if cursor else None
+
+def delete_item(sql_table, engine, **matching):
+    """
+    Executes delete stmt
+    """
+    stmt = make_stmt(sql_table, **matching)
+    with engine.connect() as conn:
+        conn.execute(stmt)
 
 def get_from_sql(return_class, stmt, engine):
     """
@@ -118,6 +126,7 @@ class FilterOperator():
     """
 
     def __init__(self, name, meta):
+        self.__name = name
         if name in meta.tables:
             self.__sql_table = meta.tables[name]
         else:
@@ -157,6 +166,9 @@ class FilterOperator():
 
     def __getattr__(self, name):
         if getattr(self.__sql_table, "name", False):
-            self.__column = getattr(self.__sql_table.c, name)
+            self.__column = getattr(self.__sql_table.c, name, False)
+            if self.__column is False:
+                msg = f"'{self.__name}' does not hold '{name}'"
+                raise GeneralMemoryError(msg)
             self.__operator = True
         return self

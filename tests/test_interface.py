@@ -73,6 +73,22 @@ class Operator(TestCase):
         self.assertTrue(memory.get(memory.perforator.name == "perforate"))
 
 
+class Delete(TestCase):
+    """
+    Delete a memory item
+    """
+
+    def test_delete(self):
+        """delete an item"""
+        memory = membank.LoadMemory(self.relative_path)
+        memory.reset()
+        booking = Transaction(50, "delete transaction")
+        memory.put(booking)
+        self.assertTrue(memory.get.transaction(id=booking.id))
+        memory.delete(booking)
+        self.assertTrue(memory.get.transaction(id=booking.id))
+
+
 class GetList(TestCase):
     """
     Testcase on getting list of items instead of single
@@ -258,3 +274,13 @@ class GetMemoryErrorHandling(TestCase):
         memory = membank.LoadMemory(self.relative_path)
         self.assertIsNone(memory.get.thisdoesnotexist())
         self.assertTrue(isinstance(memory.get("thisdoesnotexist"), list))
+
+    def test_attribute_error(self):
+        """fetching non existing attribute should fail"""
+        memory = membank.LoadMemory()
+        memory.put(Dog("lol"))
+        with self.assertRaises(membank.interface.GeneralMemoryError) as error:
+            memory.get(memory.dog.super_breed == "lol")
+        self.assertIn("does not hold", str(error.exception))
+        with self.assertRaises(membank.interface.GeneralMemoryError) as error:
+            memory.get(breed="lol")

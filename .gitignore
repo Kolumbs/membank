@@ -10,3 +10,5 @@ membank.egg-info
 dist
 .tox
 env
+env38
+env39
