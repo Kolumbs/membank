@@ -22,10 +22,11 @@ def bundle_item(item):
             meta["key"] = i.name
     return meta
 
-def assert_correct_types(instance):
+def assert_table_name(instance):
     """
-    Veriffies that instance is a dataclass instance
+    Verifies that instance is a dataclass instance
     Verifies that instance has all fields as per annotated types
+    Returns valid table name from instance
     Raises GeneralMemoryError otherwise
     """
     if isinstance(instance, type):
@@ -41,6 +42,9 @@ def assert_correct_types(instance):
                 continue
             msg = f"Field '{field.name}' is not of type {field.type}"
             raise GeneralMemoryError(msg)
+    table = getattr(instance, "__class__", False)
+    table = getattr(table, "__name__", False)
+    return table.lower()
 
 
 # pylint: disable=R0903
@@ -90,6 +94,9 @@ class MemoryBlob():
     def __call__(self, *instructions, **kargs):
         filtering = []
         previous_name = ""
+        if len(instructions) == 0:
+            msg = "There must be at least one valid comparison to get items"
+            raise GeneralMemoryError(msg)
         for instruction in instructions:
             match instruction:
                 case sql_table, sql_operation:
@@ -176,14 +183,22 @@ class LoadMemory():
         """
         return meths.FilterOperator(name, self.__metadata)
 
+    def delete(self, item):
+        """
+        Delete item in SQL table
+        """
+        table = assert_table_name(item)
+        if table not in self.__metadata.tables:
+            msg = f"Memory '{item}' cannot be deleted as table '{table}' does not exist"
+            raise GeneralMemoryError(msg)
+        table = self.__metadata.tables[table]
+        meths.delete_item(table, self.__engine, **data.asdict(item))
+
     def put(self, item):
         """
         Insert item in SQL table
         """
-        assert_correct_types(item)
-        table = getattr(item, "__class__", False)
-        table = getattr(table, "__name__", False)
-        table = table.lower()
+        table = assert_table_name(item)
         if table not in self.__metadata.tables or table == "__meta_dataclasses__":
             if table in dir(self) or table == "__meta_dataclasses__":
                 msg = f"Memory {item} cannot be created because such name is reserved by membank"

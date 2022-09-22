@@ -18,7 +18,9 @@ SQL_TABLE_TYPES = {
     int: sa.Integer,
     datetime.datetime: sa.DateTime,
     datetime.date: sa.Date,
-    bytes: sa.LargeBinary
+    bytes: sa.LargeBinary,
+    bool: sa.Boolean,
+    dict: sa.JSON,
 }
 
 def get_sql_col_type(py_type):
@@ -31,9 +33,15 @@ def get_sql_col_type(py_type):
 
 def make_stmt(sql_table, *filtering, **matching):
     """
-    Prepares SQL statement and returns it
+    Does select stmt
     """
     stmt = sa.select(sql_table)
+    return filter_stmt(stmt, sql_table, *filtering, **matching)
+
+def filter_stmt(stmt, sql_table, *filtering, **matching):
+    """
+    Prepares SQL statement and returns it
+    """
     if matching:
         for key, value in matching.items():
             stmt = stmt.where(getattr(sql_table.c, key) == value)
@@ -42,14 +50,24 @@ def make_stmt(sql_table, *filtering, **matching):
             stmt = stmt.where(item)
     return stmt
 
-def get_item(sql_table, engine, return_class, **filtering):
+def get_item(sql_table, engine, return_class, **matching):
     """
     Get item from table
     """
-    stmt = make_stmt(sql_table, **filtering)
+    stmt = make_stmt(sql_table, **matching)
     with engine.connect() as conn:
         cursor = conn.execute(stmt).first()
     return return_class(*cursor) if cursor else None
+
+def delete_item(sql_table, engine, **matching):
+    """
+    Executes delete stmt
+    """
+    stmt = sa.delete(sql_table)
+    stmt = filter_stmt(stmt, sql_table, **matching)
+    with engine.connect() as conn:
+        conn.execute(stmt)
+        conn.commit()
 
 def get_from_sql(return_class, stmt, engine):
     """
@@ -70,7 +88,12 @@ def update_item(sql_table, engine, item, key=None):
         stmt = stmt.where(col == val)
     else:
         for i in dataclasses.fields(item):
-            col = getattr(sql_table.c, i.name)
+            try:
+                col = getattr(sql_table.c, i.name)
+            except AttributeError:
+                msg = "Your object appears to be out of sync with storage"
+                msg += f" field '{i.name}' is not defined in memory"
+                raise GeneralMemoryError(msg) from None
             val = getattr(item, i.name)
             stmt = stmt.where(col == val)
     with engine.connect() as conn:
@@ -118,6 +141,7 @@ class FilterOperator():
     """
 
     def __init__(self, name, meta):
+        self.__name = name
         if name in meta.tables:
             self.__sql_table = meta.tables[name]
         else:
@@ -157,6 +181,9 @@ class FilterOperator():
 
     def __getattr__(self, name):
         if getattr(self.__sql_table, "name", False):
-            self.__column = getattr(self.__sql_table.c, name)
+            self.__column = getattr(self.__sql_table.c, name, False)
+            if self.__column is False:
+                msg = f"'{self.__name}' does not hold '{name}'"
+                raise GeneralMemoryError(msg)
             self.__operator = True
         return self

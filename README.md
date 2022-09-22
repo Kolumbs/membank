@@ -14,6 +14,9 @@ class Dog():
     breed: str
     color: str = "black"
     weight: float = 0
+    data: dict = data.field(default_factory=dict)
+    picture: bytes = b''
+    alive: bool = True
 
 memory = LoadMemory() # defaults to sqlite memory
 memory.put(Dog('Puli')) # stores object into database
@@ -33,4 +36,9 @@ assert len(dogs) >= 0
 dog = memory.get.dog()
 dog.breed = 'Labdrador'
 memory.put(dog) # stores edited object back
+```
+### filter objects
+```python
+dog = memory.get.dog(breed='Labdrador')
+assert dog.breed == 'Labrador'
 ```

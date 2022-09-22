@@ -18,6 +18,18 @@ class Dog():
     breed: str
     color: str = "black"
     weight: float = 0.0
+    data: dict = data.field(default_factory=dict)
+    picture: bytes = b''
+    alive: bool = True
+
+
+@dataclass
+class UpdatedDog():
+    """
+    Dog that is updated
+    """
+    breed: str
+    color: str = "black"
 
 
 @dataclass
@@ -71,6 +83,22 @@ class Operator(TestCase):
         memory = membank.LoadMemory(self.relative_path)
         memory.put(Perforator("perforate"))
         self.assertTrue(memory.get(memory.perforator.name == "perforate"))
+
+
+class Delete(TestCase):
+    """
+    Delete a memory item
+    """
+
+    def test_delete(self):
+        """delete an item"""
+        memory = membank.LoadMemory(self.relative_path)
+        memory.reset()
+        booking = Transaction(50, "delete transaction")
+        memory.put(booking)
+        self.assertTrue(memory.get.transaction(id=booking.id))
+        memory.delete(booking)
+        self.assertFalse(memory.get.transaction(id=booking.id))
 
 
 class GetList(TestCase):
@@ -189,6 +217,27 @@ class UpdateHandling(TestCase):
         booking = memory.get.transaction()
         self.assertEqual(booking.amount, 6.6)
 
+    # pylint: disable=redefined-outer-name,invalid-name,function-redefined,global-variable-not-assigned
+    def test_update_changed(self):
+        """update item that is changed"""
+        global UpdatedDog
+        memory = membank.LoadMemory()
+        dog = UpdatedDog("Puli")
+        memory.put(dog)
+        @dataclass
+        class UpdatedDog():
+            """
+            Version 2 for Dog
+            """
+            breed: str
+            new_field: str
+            color: str = "black"
+            weight: float = 0.0
+        dog = UpdatedDog("NewPuli", "something")
+        with self.assertRaises(membank.interface.GeneralMemoryError):
+            memory.put(dog)
+
+
 class LoadMemoryErrorHandling(TestCase):
     """
     Handle errors on LoadMemory init
@@ -258,3 +307,13 @@ class GetMemoryErrorHandling(TestCase):
         memory = membank.LoadMemory(self.relative_path)
         self.assertIsNone(memory.get.thisdoesnotexist())
         self.assertTrue(isinstance(memory.get("thisdoesnotexist"), list))
+
+    def test_attribute_error(self):
+        """fetching non existing attribute should fail"""
+        memory = membank.LoadMemory()
+        memory.put(Dog("lol"))
+        with self.assertRaises(membank.interface.GeneralMemoryError) as error:
+            memory.get(memory.dog.super_breed == "lol")
+        self.assertIn("does not hold", str(error.exception))
+        with self.assertRaises(membank.interface.GeneralMemoryError) as error:
+            memory.get(breed="lol")
