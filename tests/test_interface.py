@@ -18,6 +18,18 @@ class Dog():
     breed: str
     color: str = "black"
     weight: float = 0.0
+    data: dict = data.field(default_factory=dict)
+    picture: bytes = b''
+    alive: bool = True
+
+
+@dataclass
+class UpdatedDog():
+    """
+    Dog that is updated
+    """
+    breed: str
+    color: str = "black"
 
 
 @dataclass
@@ -204,6 +216,27 @@ class UpdateHandling(TestCase):
         memory.put(booking)
         booking = memory.get.transaction()
         self.assertEqual(booking.amount, 6.6)
+
+    # pylint: disable=redefined-outer-name,invalid-name,function-redefined,global-variable-not-assigned
+    def test_update_changed(self):
+        """update item that is changed"""
+        global UpdatedDog
+        memory = membank.LoadMemory()
+        dog = UpdatedDog("Puli")
+        memory.put(dog)
+        @dataclass
+        class UpdatedDog():
+            """
+            Version 2 for Dog
+            """
+            breed: str
+            new_field: str
+            color: str = "black"
+            weight: float = 0.0
+        dog = UpdatedDog("NewPuli", "something")
+        with self.assertRaises(membank.interface.GeneralMemoryError):
+            memory.put(dog)
+
 
 class LoadMemoryErrorHandling(TestCase):
     """

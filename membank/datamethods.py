@@ -18,7 +18,9 @@ SQL_TABLE_TYPES = {
     int: sa.Integer,
     datetime.datetime: sa.DateTime,
     datetime.date: sa.Date,
-    bytes: sa.LargeBinary
+    bytes: sa.LargeBinary,
+    bool: sa.Boolean,
+    dict: sa.JSON,
 }
 
 def get_sql_col_type(py_type):
@@ -86,7 +88,12 @@ def update_item(sql_table, engine, item, key=None):
         stmt = stmt.where(col == val)
     else:
         for i in dataclasses.fields(item):
-            col = getattr(sql_table.c, i.name)
+            try:
+                col = getattr(sql_table.c, i.name)
+            except AttributeError:
+                msg = "Your object appears to be out of sync with storage"
+                msg += f" field '{i.name}' is not defined in memory"
+                raise GeneralMemoryError(msg) from None
             val = getattr(item, i.name)
             stmt = stmt.where(col == val)
     with engine.connect() as conn:
