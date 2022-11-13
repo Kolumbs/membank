@@ -1,7 +1,7 @@
 """
 Tests for membank.interface main API for library
 """
-import dataclasses as data
+import dataclasses
 from dataclasses import dataclass
 import datetime
 
@@ -18,9 +18,10 @@ class Dog():
     breed: str
     color: str = "black"
     weight: float = 0.0
-    data: dict = data.field(default_factory=dict)
+    data: dict = dataclasses.field(default_factory=dict)
     picture: bytes = b''
     alive: bool = True
+    aliases: list = dataclasses.field(default_factory=list)
 
 
 @dataclass
@@ -40,7 +41,7 @@ class Transaction():
     amount: float
     description: str
     timestamp: datetime.datetime = None
-    id: str = data.field(default=None, metadata={"key": True})
+    id: str = dataclasses.field(default=None, metadata={"key": True})
 
     def __post_init__(self):
         """adds unique id to transaction"""
@@ -220,8 +221,10 @@ class UpdateHandling(TestCase):
     # pylint: disable=redefined-outer-name,invalid-name,function-redefined,global-variable-not-assigned
     def test_update_changed(self):
         """update item that is changed"""
+        # pylint: disable=global-statement
         global UpdatedDog
         memory = membank.LoadMemory()
+        # pylint: disable=used-before-assignment
         dog = UpdatedDog("Puli")
         memory.put(dog)
         @dataclass

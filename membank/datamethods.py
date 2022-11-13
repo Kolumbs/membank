@@ -21,6 +21,7 @@ SQL_TABLE_TYPES = {
     bytes: sa.LargeBinary,
     bool: sa.Boolean,
     dict: sa.JSON,
+    list: sa.JSON,
 }
 
 def get_sql_col_type(py_type):

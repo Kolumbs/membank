@@ -16,12 +16,29 @@ class Dog():
     weight: float = 0
     data: dict = data.field(default_factory=dict)
     picture: bytes = b''
+    aliases: list = data.field(default_factory=list)
+
+@data.dataclass
+class DogWithID():
+    id: str = data.field(default=None, metadata={"key": True})
+    breed: str
+    color: str = "black"
+    weight: float = 0
+    data: dict = data.field(default_factory=dict)
+    picture: bytes = b''
     alive: bool = True
 
 memory = LoadMemory() # defaults to sqlite memory
 memory.put(Dog('Puli')) # stores object into database
 dog = memory.get.dog() # retrieves first object found
 assert dog.breed == 'Puli'
+dog.color = "white"
+memory.put(dog) # be carefull you store another dog
+dog = memory.put(DogWithID("AB1234", "Puli"))
+dog = memory.get.dogwithid(id="AB1234")
+dog.color = "white"
+memory.put(dog) # now you update existing dog
+
 ```
 ### retrieve those after
 ```python
