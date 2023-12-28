@@ -23,11 +23,10 @@ class Mapper():
 
     def __init__(self, engine, metadata):
         self.engine = engine
-        self.metadata = metadata
-        if "__meta_dataclasses__" not in self.metadata:
+        if "__meta_dataclasses__" not in metadata:
             create_table("__meta_dataclasses__", TableClass(), self.engine)
-        self.metadata.reflect(bind=self.engine)
-        self.sql_table = self.metadata.tables["__meta_dataclasses__"]
+            metadata.reflect(bind=self.engine)
+        self.sql_table = metadata.tables["__meta_dataclasses__"]
 
     def get_class(self, table):
         """

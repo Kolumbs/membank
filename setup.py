@@ -1,6 +1,4 @@
-"""
-Build for membank
-"""
+"""Build for membank."""
 import setuptools
 
 with open("README.md", "r", encoding="utf-8") as fh:
@@ -8,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
     setuptools.setup(
         name="membank",
-        version="0.4.1",
+        version="0.4.2",
         author="Juris Kaminskis",
         author_email="juris.kaminskis@gmail.com",
         description="A library to handle persistent memory",
@@ -19,14 +17,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
             "Bug Tracker": "https://github.com/Kolumbs/membank/issues",
         },
         classifiers=[
-        "Development Status :: 1 - Planning",
-        "Intended Audience :: Developers",
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: BSD License",
-        "Operating System :: OS Independent",
-        "Topic :: Database",
+            "Development Status :: 1 - Planning",
+            "Intended Audience :: Developers",
+            "Programming Language :: Python :: 3",
+            "License :: OSI Approved :: BSD License",
+            "Operating System :: OS Independent",
+            "Topic :: Database",
         ],
         packages=["membank"],
         install_requires=["alembic", "sqlalchemy"],
         python_requires=">=3.10",
-)
+    )

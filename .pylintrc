@@ -1,2 +1,4 @@
 [BASIC]
 good-names=id, op, i, j
+[MESSAGES CONTROL]
+disable=W0212
