@@ -77,8 +77,17 @@ class MemoryBlob:
                 raise e.MemoryFilteringError(table_name, previous_name)
             previous_name = table_name
         return_class = self.__parent._get_class(previous_name)
-        stmt = meths.make_stmt(sql_table, return_class, *filtering, **kargs)
-        return meths.get_from_sql(return_class, stmt, self.__parent._get_engine())
+        try:
+            args = [
+                sql_table,
+                self.__parent._get_engine(),
+                return_class,
+            ]
+            return meths.get_list(*args, *filtering, **kargs)
+        except e.MemoryOutOfSyncError:
+            self.__parent.sync(return_class)
+            args[0] = self.__parent._get_sql_table(previous_name)
+            return meths.get_list(*args, *filtering, **kargs)
 
 
 def assert_path(path, db_type):

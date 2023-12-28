@@ -242,6 +242,9 @@ class UpdateWithDBChange(b.TestCase):
 
         old_dog = self.memory.get.updateddog()
         self.assertEqual(self.dog.breed, old_dog.breed)
+        next_dog = self.memory.get("updateddog")
+        self.assertTrue(len(next_dog), 1)
+        self.assertEqual(self.dog.breed, next_dog[0].breed)
         dog = UpdatedDog("NewPuli", "something")
         self.memory.put(dog)
         new_dog = self.memory.get.updateddog(breed="NewPuli")
@@ -260,7 +263,11 @@ class UpdateWithDBChange(b.TestCase):
             color: str = "black"
             weight: float = 0.0
 
-        dog = self.memory.get.updateddog()
+        dog = self.memory.get("updateddog")
+        self.assertTrue(len(dog), 1)
+        dog = dog[0]
+        next_dog = self.memory.get.updateddog()
+        self.assertEqual(next_dog, dog)
         self.assertEqual(self.dog.breed, dog.breed)
         self.assertEqual(self.dog.color, dog.color)
         self.assertEqual("Puli", dog.breed)

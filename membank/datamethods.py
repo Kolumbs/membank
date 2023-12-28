@@ -55,6 +55,12 @@ def get_item(sql_table, engine, return_class, **matching):
     return return_class(*cursor) if cursor else None
 
 
+def get_list(sql_table, engine, return_class, *filtering, **matching):
+    """Get list of items from table."""
+    stmt = make_stmt(sql_table, return_class, *filtering, **matching)
+    return get_from_sql(return_class, stmt, engine)
+
+
 def delete_item(sql_table, engine, **matching):
     """Execute delete stmt."""
     stmt = sa.delete(sql_table)
