@@ -240,10 +240,32 @@ class UpdateWithDBChange(b.TestCase):
             color: str = "black"
             weight: float = 0.0
 
+        old_dog = self.memory.get.updateddog()
+        self.assertEqual(self.dog.breed, old_dog.breed)
         dog = UpdatedDog("NewPuli", "something")
         self.memory.put(dog)
         new_dog = self.memory.get.updateddog(breed="NewPuli")
         self.assertEqual(dog, new_dog)
+
+    def test_changed_read(self):
+        """Should be possible to read changed item."""
+        global UpdatedDog
+
+        @dataclass
+        class UpdatedDog():
+            """Version 2 for Dog."""
+
+            breed: str
+            new_field: str
+            color: str = "black"
+            weight: float = 0.0
+
+        dog = self.memory.get.updateddog()
+        self.assertEqual(self.dog.breed, dog.breed)
+        self.assertEqual(self.dog.color, dog.color)
+        self.assertEqual("Puli", dog.breed)
+        self.assertEqual("black", dog.color)
+        self.assertEqual(None, dog.new_field)
 
 
 class UpdateWithKey(b.TestCase):

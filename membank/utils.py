@@ -32,5 +32,10 @@ def get_table_name(cls):
     table = getattr(cls, "__class__", False)
     if not table:
         return ""
-    table = getattr(table, "__name__", "")
-    return table.lower()
+    return get_class_name(table)
+
+
+def get_class_name(cls):
+    """Get class name."""
+    name = getattr(cls, "__name__", "")
+    return name.lower()

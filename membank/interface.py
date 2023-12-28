@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from membank import datamapper
 import membank.datamethods as meths
 from membank import errors as e
-from membank.utils import assert_table_name
+from membank.utils import assert_table_name, get_class_name
 
 
 def bundle_item(item):
@@ -36,12 +36,22 @@ class MemoryBlob:
         """Initialise blob by connecting to a parent."""
         self.__parent = parent
 
-    def __getattr__(self, name):
-        return lambda **kw: meths.get_item(
+    def __getter(self, name, **kw):
+        """Fetch result from memory."""
+        args = [
             self.__parent._get_sql_table(name),
             self.__parent._get_engine(),
-            self.__parent._get_dataclass(name),
-            **kw)
+            self.__parent._get_class(name),
+        ]
+        try:
+            return meths.get_item(*args, **kw)
+        except e.MemoryOutOfSyncError:
+            self.__parent.sync(args[2])
+            args[0] = self.__parent._get_sql_table(name)
+            return meths.get_item(*args, **kw)
+
+    def __getattr__(self, name):
+        return lambda **kw: self.__getter(name, **kw)
 
     def __call__(self, *instructions, **kargs):
         """Fetch result from memory.
@@ -66,7 +76,7 @@ class MemoryBlob:
             if previous_name and previous_name != table_name:
                 raise e.MemoryFilteringError(table_name, previous_name)
             previous_name = table_name
-        return_class = self.__parent._get_dataclass(previous_name)
+        return_class = self.__parent._get_class(previous_name)
         stmt = meths.make_stmt(sql_table, return_class, *filtering, **kargs)
         return meths.get_from_sql(return_class, stmt, self.__parent._get_engine())
 
@@ -148,9 +158,13 @@ class LoadMemory():
         """Return engine."""
         return self.__engine
 
-    def _get_dataclass(self, name):
+    def _get_class(self, name):
         """Return dataclass."""
-        return self.__dataclass.get_class(self._get_sql_table(name))
+        return self.__dataclass.get_class(name)
+
+    def _put_class(self, name, dataclass):
+        """Store dataclass."""
+        self.__dataclass.put_class(name, dataclass)
 
     def delete(self, item):
         """Delete item in SQL table."""
@@ -169,7 +183,7 @@ class LoadMemory():
                 msg = f"Memory {item} cannot be created, such name is reserved by membank"
                 raise e.GeneralMemoryError(msg)
             meths.create_table(table, item, self.__engine)
-            self.__dataclass.put_class(table, item.__class__)
+            self._put_class(table, item.__class__)
             self.__refresh_state()
         sql_table = self._get_sql_table(table)
         meta = bundle_item(item)
@@ -177,14 +191,14 @@ class LoadMemory():
         try:
             meths.update_item(sql_table, self._get_engine(), item, key)
         except e.MemoryOutOfSyncError:
-            self.sync(item)
+            self.sync(self._get_class(table))
             sql_table = self._get_sql_table(table)
             meths.update_item(sql_table, self._get_engine(), item, key)
 
     def sync(self, obj):
         """Synchronise obj with SQL table."""
-        table = assert_table_name(obj)
-        self.__dataclass.put_class(table, obj.__class__)
+        table = get_class_name(obj)
+        self.__dataclass.put_class(table, obj)
         table = self.__metadata.tables[table]
         meths.sync_table(table, self._get_engine(), obj)
         self.__refresh_state()
