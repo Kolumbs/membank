@@ -34,6 +34,7 @@ class Cat():
     """Cat example."""
 
     id: str = dataclasses.field(default=None, metadata={"key": True})
+    name: str = "Rudolf"
     color: str = "black"
 
 
@@ -61,7 +62,7 @@ class Perforator():
     name: str
 
 
-@b.add_memory
+@b.add_memory()
 class CleanData(b.TestCase):
     """Testcase on clean_all_data function in Memory."""
 
@@ -128,7 +129,7 @@ class GetList(b.TestCase):
         self.memory.get(self.memory.nonexisting.timestamp >= False)
 
 
-@b.add_memory
+@b.add_memory()
 class DynamicFields(b.TestCase):
     """Create memory structures with dynamic field generation."""
 
@@ -151,7 +152,7 @@ class DynamicFields(b.TestCase):
             self.memory.put(WrongDynamic)
 
 
-@b.add_memory
+@b.add_memory()
 class CreateRead(b.TestCase):
     """Create simple memory structure, add item and get it back."""
 
@@ -317,23 +318,23 @@ class LoadMemoryErrorHandling(b.TestCase):
             membank.LoadMemory(url=dict(id="path"))
 
 
-@b.add_memory
+@b.add_memory()
 class PutMemoryErrorHandling(b.TestCase):
     """Handle errors on LoadMemory.put function."""
 
     def test_wrong_input(self):
         """Input should fail if not namedtuple instance."""
-        with self.assertRaises(membank.interface.GeneralMemoryError):
+        with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put("blblbl")
 
         @dataclass
         class UnsupportedType():
             done: Dog
-        with self.assertRaises(membank.interface.GeneralMemoryError):
+        with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put(UnsupportedType)
-        with self.assertRaises(membank.interface.GeneralMemoryError):
+        with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put(Dog)
-        with self.assertRaises(membank.interface.GeneralMemoryError):
+        with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put(Dog(1))
 
     def test_reserved_name(self):
@@ -342,13 +343,13 @@ class PutMemoryErrorHandling(b.TestCase):
         @dataclass
         class __meta_dataclasses__():
             id: str
-        with self.assertRaises(membank.interface.GeneralMemoryError):
+        with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put(__meta_dataclasses__("ad"))
 
         @dataclass
         class Put():
             id: str
-        with self.assertRaises(membank.interface.GeneralMemoryError):
+        with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put(Put("ad"))
 
 
@@ -372,3 +373,22 @@ class GetMemoryErrorHandling(b.TestCase):
         self.assertIn("does not hold", str(error.exception))
         with self.assertRaises(membank.errors.GeneralMemoryError) as error:
             memory.get(breed="lol")
+
+
+@b.add_memory()
+class GetWithKeywords(b.TestCase):
+    """Get objects by keywords."""
+
+    def test(self):
+        """Simple get with keyword."""
+        cat = Cat("1", "Ronalo")
+        self.memory.put(cat)
+        db_cat = self.memory.get.cat(name="Ronalo")
+        self.assertEqual(cat, db_cat)
+        # exactly the same call still works the same
+        db_cat = self.memory.get.cat(name="Ronalo")
+        self.assertEqual(cat, db_cat)
+        db_cat = self.memory.get("cat", name="Ronalo")
+        self.assertTrue(len(db_cat), 1)
+        db_cat = db_cat[0]
+        self.assertEqual(cat, db_cat)

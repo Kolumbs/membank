@@ -22,6 +22,9 @@ class TestCase(unittest.TestCase):
 
 def add_memory(path=None, reset=False):
     """Decorate TestCase with memory."""
+    if path is not None and not isinstance(path, str):
+        raise TypeError(f"path must be a string, was {path}")
+
     def decorator(cls):
         """Add memory to TestCase cls."""
         class MemoryTestCase(cls):

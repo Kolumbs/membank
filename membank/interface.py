@@ -33,25 +33,31 @@ class MemoryBlob:
     """
 
     def __init__(self, parent):
-        """Initialise blob by connecting to a parent."""
+        """Initialise blob with parent and getters."""
         self.__parent = parent
+        self.__getters = {}
 
-    def __getter(self, name, **kw):
-        """Fetch result from memory."""
-        args = [
-            self.__parent._get_sql_table(name),
-            self.__parent._get_engine(),
-            self.__parent._get_class(name),
-        ]
-        try:
-            return meths.get_item(*args, **kw)
-        except e.MemoryOutOfSyncError:
-            self.__parent.sync(args[2])
-            args[0] = self.__parent._get_sql_table(name)
-            return meths.get_item(*args, **kw)
+    def __make_getter_by_name(self, name):
+        """Make getter by name."""
+        def getter(**kw):
+            args = [
+                self.__parent._get_sql_table(name),
+                self.__parent._get_engine(),
+                self.__parent._get_class(name),
+            ]
+            try:
+                return meths.get_item(*args, **kw)
+            except e.MemoryOutOfSyncError:
+                self.__parent.sync(args[2])
+                args[0] = self.__parent._get_sql_table(name)
+                return meths.get_item(*args, **kw)
+        return getter
 
     def __getattr__(self, name):
-        return lambda **kw: self.__getter(name, **kw)
+        """Get memory attribute."""
+        if name not in self.__getters:
+            self.__getters[name] = self.__make_getter_by_name(name)
+        return self.__getters[name]
 
     def __call__(self, *instructions, **kargs):
         """Fetch result from memory.
