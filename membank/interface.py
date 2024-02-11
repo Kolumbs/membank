@@ -40,8 +40,13 @@ class MemoryBlob:
     def __make_getter_by_name(self, name):
         """Make getter by name."""
         def getter(**kw):
+            """Get item from memory."""
+            try:
+                table = self.__parent._get_sql_table(name)
+            except e.MemoryTableDoesNotExist:
+                return None
             args = [
-                self.__parent._get_sql_table(name),
+                table,
                 self.__parent._get_engine(),
                 self.__parent._get_class(name),
             ]
@@ -78,7 +83,10 @@ class MemoryBlob:
                     else:
                         return []
                 case table_name:
-                    sql_table = self.__parent._get_sql_table(table_name)
+                    try:
+                        sql_table = self.__parent._get_sql_table(table_name)
+                    except e.MemoryTableDoesNotExist:
+                        return []
             if previous_name and previous_name != table_name:
                 raise e.MemoryFilteringError(table_name, previous_name)
             previous_name = table_name
@@ -166,7 +174,7 @@ class LoadMemory():
     def _get_sql_table(self, name):
         """Return SQL table."""
         if name not in self.__metadata.tables:
-            raise e.GeneralMemoryError(f"Table '{name}' does not exist")
+            raise e.MemoryTableDoesNotExist(name)
         return self.__metadata.tables[name]
 
     def _get_engine(self):

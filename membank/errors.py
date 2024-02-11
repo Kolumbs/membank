@@ -5,6 +5,15 @@ class GeneralMemoryError(Exception):
     """All general errors in memory interface."""
 
 
+class MemoryTableDoesNotExist(Exception):
+    """Table does not exist in memory."""
+
+    def __init__(self, table_name):
+        """Initialise message."""
+        msg = f"Table '{table_name}' does not exist"
+        Exception.__init__(self, msg)
+
+
 class MemoryFilteringError(Exception):
     """Error with filtering different tables at the same time."""
 

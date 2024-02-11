@@ -357,12 +357,10 @@ class GetMemoryErrorHandling(b.TestCase):
     """Handle errors on LoadMemory.get function."""
 
     def test_none_existing_table(self):
-        """Input should raise error if not existing table."""
+        """Return None if not existing table."""
         memory = membank.LoadMemory(b.DBPath.RELATIVE)
-        with self.assertRaises(membank.errors.GeneralMemoryError):
-            memory.get.thisdoesnotexist()
-        with self.assertRaises(membank.errors.GeneralMemoryError):
-            memory.get("thisdoesnotexist")
+        self.assertIsNone(memory.get.thisdoesnotexist())
+        self.assertEqual(memory.get("thisdoesnotexist"), [])
 
     def test_attribute_error(self):
         """Fetching non existing attribute should fail."""
