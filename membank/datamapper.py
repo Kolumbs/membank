@@ -32,7 +32,9 @@ class Mapper():
             TableClass,
             **{"table": table}
         )
-        return pickle.loads(table_class.classload)
+        if table_class:
+            return pickle.loads(table_class.classload)
+        return None
 
     def put_class(self, table, table_class):
         """Store dataclass representing table."""

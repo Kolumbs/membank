@@ -45,10 +45,13 @@ class MemoryBlob:
                 table = self.__parent._get_sql_table(name)
             except e.MemoryTableDoesNotExist:
                 return None
+            classload = self.__parent._get_class(name)
+            if not classload:
+                return None
             args = [
                 table,
                 self.__parent._get_engine(),
-                self.__parent._get_class(name),
+                classload
             ]
             try:
                 return meths.get_item(*args, **kw)
@@ -206,6 +209,7 @@ class LoadMemory():
                 msg = f"Memory {item} cannot be created, such name is reserved by membank"
                 raise e.GeneralMemoryError(msg)
             meths.create_table(table, item, self.__engine)
+        if not self._get_class(table):
             self._put_class(table, item.__class__)
             self.__refresh_state()
         sql_table = self._get_sql_table(table)

@@ -361,6 +361,7 @@ class GetMemoryErrorHandling(b.TestCase):
         memory = membank.LoadMemory(b.DBPath.RELATIVE)
         self.assertIsNone(memory.get.thisdoesnotexist())
         self.assertEqual(memory.get("thisdoesnotexist"), [])
+        self.assertEqual(memory.get("thisdoesnotexist", relation=5), [])
 
     def test_attribute_error(self):
         """Fetching non existing attribute should fail."""
