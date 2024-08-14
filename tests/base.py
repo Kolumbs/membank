@@ -1,5 +1,7 @@
 """Common methods and constants for all tests."""
+
 import enum
+import functools
 import os
 import unittest
 
@@ -27,6 +29,8 @@ def add_memory(path=None, reset=False):
 
     def decorator(cls):
         """Add memory to TestCase cls."""
+
+        @functools.wraps(cls, updated=())
         class MemoryTestCase(cls):
             """Add memory to TestCase."""
 
@@ -43,5 +47,7 @@ def add_memory(path=None, reset=False):
                 super().tearDown()
                 if reset:
                     self.memory.reset()
+
         return MemoryTestCase
+
     return decorator

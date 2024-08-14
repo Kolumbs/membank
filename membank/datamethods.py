@@ -51,7 +51,7 @@ def get_item(sql_table, engine, return_class, **matching):
     """Get item from table."""
     stmt = make_stmt(sql_table, return_class, **matching)
     with engine.connect() as conn:
-        cursor = conn.execute(stmt).first()
+        cursor = execute_stmt(conn, stmt).first()
     return return_class(*cursor) if cursor else None
 
 
@@ -66,14 +66,14 @@ def delete_item(sql_table, engine, **matching):
     stmt = sa.delete(sql_table)
     stmt = filter_stmt(stmt, sql_table, **matching)
     with engine.connect() as conn:
-        conn.execute(stmt)
+        execute_stmt(conn, stmt)
         conn.commit()
 
 
 def get_from_sql(return_class, stmt, engine):
     """Get all items from table as per SQL statement."""
     with engine.connect() as conn:
-        cursor = conn.execute(stmt)
+        cursor = execute_stmt(conn, stmt)
         return [return_class(*i) for i in cursor]
 
 
@@ -88,7 +88,7 @@ def update_item(sql_table, engine, item, key=None):
         for col, val in _unpack_values(item, sql_table):
             stmt = stmt.where(col == val)
     with engine.connect() as conn:
-        rows = conn.execute(stmt)
+        rows = execute_stmt(conn, stmt)
         record = rows.first()
     if not record or (record and key):
         if record and key:
@@ -101,7 +101,18 @@ def update_item(sql_table, engine, item, key=None):
         stmt = stmt.values(dict(_unpack_values(item, sql_table)))
         with engine.connect() as conn:
             with conn.begin():
-                conn.execute(stmt)
+                execute_stmt(conn, stmt)
+
+
+def execute_stmt(conn, stmt):
+    """Execute SQL statement."""
+    try:
+        return conn.execute(stmt)
+    except sa.exc.StatementError as error:
+        msg = str(error.orig)
+        if isinstance(error.orig, TypeError):
+            msg += " Invalid field type, possibly use 'encode' in metadata"
+        raise e.GeneralMemoryError(msg) from None
 
 
 def sync_table(sql_table, engine, obj):
@@ -207,6 +218,8 @@ def _unpack_values(obj, table):
     for i in dataclasses.fields(obj):
         key = _getmemattr(table.c, i.name)
         val = getattr(obj, i.name)
+        if "encode" in i.metadata:
+            val = i.metadata["encode"](val)
         yield key, val
 
 

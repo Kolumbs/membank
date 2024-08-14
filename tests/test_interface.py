@@ -1,4 +1,6 @@
 """Tests for membank.interface main API for library."""
+
+import base64
 import dataclasses
 from dataclasses import dataclass
 import datetime
@@ -7,22 +9,40 @@ import membank
 from tests import base as b
 
 
+def encode_team(team):
+    """Encode dog in json."""
+    return [encode_dog(i) for i in team]
+
+
+def encode_dog(dog):
+    """Encode dog in json."""
+    res = dataclasses.asdict(dog)
+    res["picture"] = base64.b64encode(res["picture"]).decode("utf-8")
+    return res
+
+
+def decode_dog(kwargs):
+    """Decode dog from json."""
+    kwargs["picture"] = base64.b64decode(kwargs["picture"].encode("utf-8"))
+    return Dog(**kwargs)
+
+
 # Test tables
 @dataclass
-class Dog():
+class Dog:
     """Simple example from README."""
 
     breed: str
     color: str = "black"
     weight: float = 0.0
     data: dict = dataclasses.field(default_factory=dict)
-    picture: bytes = b''
+    picture: bytes = b""
     alive: bool = True
     aliases: list = dataclasses.field(default_factory=list)
 
 
 @dataclass
-class UpdatedDog():
+class UpdatedDog:
     """Dog that is updated."""
 
     breed: str
@@ -30,7 +50,23 @@ class UpdatedDog():
 
 
 @dataclass
-class Cat():
+class DogTeam:
+    """Team of dogs."""
+
+    name: str = dataclasses.field(metadata={"key": True})
+    team: list = dataclasses.field(
+        default_factory=list, metadata={"encode": encode_team}
+    )
+
+    def __post_init__(self):
+        """Convert dictionaries in team list to dogs."""
+        for i, val in enumerate(self.team):
+            if not isinstance(val, Dog):
+                self.team[i] = decode_dog(val)
+
+
+@dataclass
+class Cat:
     """Cat example."""
 
     id: str = dataclasses.field(default=None, metadata={"key": True})
@@ -39,7 +75,7 @@ class Cat():
 
 
 @dataclass
-class Transaction():
+class Transaction:
     """Example with pre post handling."""
 
     amount: float
@@ -56,7 +92,7 @@ class Transaction():
 
 
 @dataclass
-class Perforator():
+class Perforator:
     """Example with name attibute."""
 
     name: str
@@ -119,7 +155,7 @@ class GetList(b.TestCase):
     def test_operators(self):
         """Verify that comparison operators can be used."""
         today = datetime.datetime.now()
-        bookings = self.memory.get(*(self.memory.transaction.timestamp <= today, ))
+        bookings = self.memory.get(*(self.memory.transaction.timestamp <= today,))
         self.assertEqual(len(bookings), 10)
         for i in bookings:
             self.assertTrue(i.timestamp <= today)
@@ -144,10 +180,12 @@ class DynamicFields(b.TestCase):
 
     def test_wrong_input(self):
         """Dynamic field with wrong input."""
+
         @dataclass
-        class WrongDynamic():
+        class WrongDynamic:
             def add_id(self):
                 return self
+
         with self.assertRaises(membank.GeneralMemoryError):
             self.memory.put(WrongDynamic)
 
@@ -220,7 +258,7 @@ class UpdateWithDBChange(b.TestCase):
         global UpdatedDog
 
         @dataclass
-        class UpdatedDog():
+        class UpdatedDog:
             """Version 2 for Dog."""
 
             breed: str
@@ -233,7 +271,7 @@ class UpdateWithDBChange(b.TestCase):
         global UpdatedDog
 
         @dataclass
-        class UpdatedDog():
+        class UpdatedDog:
             """Version 2 for Dog."""
 
             breed: str
@@ -256,7 +294,7 @@ class UpdateWithDBChange(b.TestCase):
         global UpdatedDog
 
         @dataclass
-        class UpdatedDog():
+        class UpdatedDog:
             """Version 2 for Dog."""
 
             breed: str
@@ -287,7 +325,7 @@ class UpdateWithKey(b.TestCase):
         memory.put(cat)
 
         @dataclass
-        class Cat():
+        class Cat:
             """Version 2 with key field."""
 
             id: str = dataclasses.field(default=None, metadata={"key": True})
@@ -328,8 +366,9 @@ class PutMemoryErrorHandling(b.TestCase):
             self.memory.put("blblbl")
 
         @dataclass
-        class UnsupportedType():
+        class UnsupportedType:
             done: Dog
+
         with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put(UnsupportedType)
         with self.assertRaises(membank.errors.GeneralMemoryError):
@@ -339,16 +378,18 @@ class PutMemoryErrorHandling(b.TestCase):
 
     def test_reserved_name(self):
         """Input should fail if reserved name."""
-        # pylint: disable=C0103,C0115,C0116
+
         @dataclass
-        class __meta_dataclasses__():
+        class __meta_dataclasses__:
             id: str
+
         with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put(__meta_dataclasses__("ad"))
 
         @dataclass
-        class Put():
+        class Put:
             id: str
+
         with self.assertRaises(membank.errors.GeneralMemoryError):
             self.memory.put(Put("ad"))
 
@@ -391,3 +432,22 @@ class GetWithKeywords(b.TestCase):
         self.assertTrue(len(db_cat), 1)
         db_cat = db_cat[0]
         self.assertEqual(cat, db_cat)
+
+
+@b.add_memory()
+class GetComplexObject(b.TestCase):
+    """Get nested objects."""
+
+    def test(self):
+        """Create nested object and retrieve it."""
+        dog1, dog2 = Dog("Bulldog"), Dog("Poodle")
+        team = DogTeam("Pulis", [dog1, dog2])
+        self.memory.put(team)
+        db_team = self.memory.get.dogteam(name="Pulis")
+        self.assertEqual(team.name, db_team.name)
+        self.assertEqual(team.team[0], db_team.team[0])
+        self.assertEqual(team, db_team)
+        db_team = self.memory.get("dogteam", name="Pulis")
+        self.assertTrue(len(db_team), 1)
+        db_team = db_team[0]
+        self.assertEqual(team, db_team)

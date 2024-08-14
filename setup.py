@@ -6,9 +6,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
     setuptools.setup(
         name="membank",
-        version="0.5.1",
+        version="0.5.2",
         author="Juris Kaminskis",
-        author_email="juris.kaminskis@gmail.com",
+        author_email="juris@kolumbs.net",
         description="A library to handle persistent memory",
         long_description=long_description,
         long_description_content_type="text/markdown",

@@ -18,7 +18,9 @@ class CleanData(b.TestCase):
         with engine.connect() as conn:
             conn.execute(sa.text("DELETE FROM __meta_dataclasses__"))
             conn.commit()
-        self.assertIsNone(self.memory.get.perforator(name="test"))
+        result = self.memory.get.perforator(name="test")
+        # Here might be even better if result is working as expected
+        self.assertIsNone(result)
         self.memory.put(Perforator("some other perforator"))
         self.assertTrue(self.memory.get.perforator(name="some other perforator"))
         self.assertEqual(p, self.memory.get.perforator(name="test"))
