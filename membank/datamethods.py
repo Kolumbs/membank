@@ -112,6 +112,9 @@ def execute_stmt(conn, stmt):
         msg = str(error.orig)
         if isinstance(error.orig, TypeError):
             msg += " Invalid field type, possibly use 'encode' in metadata"
+        if "no such table:" in msg:
+            msg = msg.split(":", maxsplit=1)[-1].strip()
+            raise e.MemoryTableDoesNotExist(msg) from None
         raise e.GeneralMemoryError(msg) from None
 
 
