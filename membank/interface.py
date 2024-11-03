@@ -138,8 +138,8 @@ class LoadMemory():
         Special note on relative vs. absolute file path handling
         As RFC-1738 does not allow relative file paths, special notation is used only for
         local file based access databases e.g. sqlite, berkeleydb. To make relative path,
-        host location of file path must be used i.e. file://{relative_path}. For absolute
-        paths host part must be empty i.e. file:///{abosulute_path}
+        host location of file path must be used i.e. scheme://{relative_path}. For absolute
+        paths host part must be empty i.e. scheme:///{absolute_path}
         """
         if not url:
             url = "sqlite://:memory:"

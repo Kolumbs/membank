@@ -25,6 +25,6 @@ with open("README.md", "r", encoding="utf-8") as fh:
             "Topic :: Database",
         ],
         packages=["membank"],
-        install_requires=["alembic", "sqlalchemy"],
+        install_requires=["alembic", "sqlalchemy", "asyncpg"],
         python_requires=">=3.10",
     )
