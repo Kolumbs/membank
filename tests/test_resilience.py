@@ -16,9 +16,10 @@ class CleanData(b.TestCase):
         self.assertTrue(self.memory.get.perforator(name="test"))
         self.commit_stmt("DELETE FROM __meta_dataclasses__")
         result = self.memory.get.perforator(name="test")
-        # Here might be even better if result is working as expected
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.name, "test")
         self.memory.put(Perforator("some other perforator"))
+        self.memory.put(Perforator("some more perforators"))
         self.assertTrue(self.memory.get.perforator(name="some other perforator"))
         self.assertEqual(p, self.memory.get.perforator(name="test"))
 
@@ -27,7 +28,9 @@ class CleanData(b.TestCase):
         p = Perforator("test")
         self.memory.put(p)
         self.commit_stmt("DROP TABLE __meta_dataclasses__")
-        self.assertIsNone(self.memory.get.perforator(name="test"))
+        result = self.memory.get(self.memory.perforator.name == "test")
+        self.assertIsNotNone(result)
+        self.assertIsNotNone(self.memory.get.perforator(name="test"))
         self.memory.put(p)
 
     def commit_stmt(self, stmt):

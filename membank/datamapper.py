@@ -1,10 +1,11 @@
 """Module supports dataclass storage and retrieval."""
 
-from dataclasses import dataclass
 import pickle
+from dataclasses import dataclass, make_dataclass
 
 from membank import errors as e
-from membank.datamethods import create_table, get_item, update_item
+from membank.datamethods import (create_table, get_item,
+                                 introspect_table_fields, update_item)
 
 
 @dataclass
@@ -31,6 +32,13 @@ class Mapper:
         create_table("__meta_dataclasses__", TableClass(), self.engine)
         self.metadata.reflect(bind=self.engine)
 
+    def _get_temporary_fallback_class(self, table):
+        """Return a temporary fallback dataclass for given table."""
+        self.metadata.reflect(bind=self.engine)
+        cls_name = table.capitalize() + "Fallback"
+        fields = introspect_table_fields(self.metadata.tables[table])
+        return make_dataclass(cls_name, fields)
+
     def _handle_missing_meta(self, func, *args, **kwargs):
         """Run function such that missing __meta_dataclasses are taken into account.
 
@@ -53,7 +61,7 @@ class Mapper:
             table_class = None
         if table_class:
             return pickle.loads(table_class.classload)
-        return None
+        return self._get_temporary_fallback_class(table)
 
     def put_class(self, table, table_class):
         """Store dataclass representing table."""

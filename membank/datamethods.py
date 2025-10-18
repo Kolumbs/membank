@@ -127,8 +127,23 @@ def sync_table(sql_table, engine, obj):
             if field.name not in sql_table.c:
                 col_type = get_sql_col_type(field.type)
                 col = sa.Column(field.name, col_type)
-                # pylint: disable=E1101
                 alembic.add_column(sql_table.name, col)
+
+
+def introspect_table_fields(sql_table):
+    """Introspect table fields."""
+    fields = []
+    for col in sql_table.c:
+        col_type = None
+        for py_type, sql_type in SQL_TABLE_TYPES.items():
+            if isinstance(col.type, sql_type):
+                col_type = py_type
+                break
+        if not col_type:
+            msg = f"Column '{col.name}' has unsupported type '{col.type}'"
+            raise e.GeneralMemoryError(msg)
+        fields.append((col.name, col_type))
+    return fields
 
 
 def create_table(table, instance, engine):
@@ -145,7 +160,6 @@ def create_table(table, instance, engine):
             col_type = get_sql_col_type(field.type)
             col = sa.Column(field.name, col_type)
             cols.append(col)
-        # pylint: disable=E1101
         try:
             alembic.create_table(table, *cols)
         except sa.exc.OperationalError as error:
