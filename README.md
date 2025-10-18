@@ -59,5 +59,3 @@ memory.put(dog) # stores edited object back
 dog = memory.get.dog(breed='Labdrador')
 assert dog.breed == 'Labrador'
 ```
-## Known issues
- - return class is stored(pickled) into underlying database table with reference to the module to load it back. If module name or class name is changed, membank won't always be able to load previous data as object pointer could be missing

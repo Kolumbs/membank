@@ -1,6 +1,30 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
-]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
+
+[project]
+version = "0.5.4"
+name = "membank"
+authors = [{"name" = "Juris Kaminskis", "email" = "juris@kolumbs.net"}]
+readme = "README.md"
+description = "A library to handle persistent memory"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Topic :: Database",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "alembic",
+    "asyncpg",
+    "sqlalchemy",
+]
+
+[project.urls]
+Repository = "https://github.com/Kolumbs/membank"
+
+[tool.setuptools]
+license-files = []
