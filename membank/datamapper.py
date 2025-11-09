@@ -65,6 +65,8 @@ class Mapper:
 
     def put_class(self, table, table_class):
         """Store dataclass representing table."""
+        if table_class.__name__.endswith("Fallback"):
+            return
         classload = pickle.dumps(table_class)
         args = (
             self.sql_table,

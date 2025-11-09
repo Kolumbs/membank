@@ -1,12 +1,13 @@
 """Defines interface class and functions for library."""
+
 import dataclasses as data
 import os
 import urllib.parse
 
 import sqlalchemy as sa
 
-from membank import datamapper
 import membank.datamethods as meths
+from membank import datamapper
 from membank import errors as e
 from membank.utils import assert_table_name, get_class_name
 
@@ -39,6 +40,7 @@ class MemoryBlob:
 
     def __make_getter_by_name(self, name):
         """Make getter by name."""
+
         def getter(**kw):
             """Get item from memory."""
             try:
@@ -48,17 +50,14 @@ class MemoryBlob:
             classload = self.__parent._get_class(name)
             if not classload:
                 return None
-            args = [
-                table,
-                self.__parent._get_engine(),
-                classload
-            ]
+            args = [table, self.__parent._get_engine(), classload]
             try:
                 return meths.get_item(*args, **kw)
             except e.MemoryOutOfSyncError:
                 self.__parent.sync(args[2])
                 args[0] = self.__parent._get_sql_table(name)
                 return meths.get_item(*args, **kw)
+
         return getter
 
     def __getattr__(self, name):
@@ -70,7 +69,8 @@ class MemoryBlob:
     def __call__(self, *instructions, **kargs):
         """Fetch result from memory.
 
-        Expects a table name or a table and a comparison as first argument.
+        Expects a table name or a table and a comparison as first
+        argument.
         """
         filtering = []
         previous_name = ""
@@ -124,10 +124,10 @@ def assert_path(path, db_type):
         raise e.GeneralMemoryError(msg)
 
 
-class LoadMemory():
+class LoadMemory:
     """Loads memory and provides methods to create, change and access it."""
 
-    def __init__(self, url=False, debug=False):
+    def __init__(self, url: bool = False, debug: bool = False):
         """Initialise memory with base settings.
 
         debug - more verbose logging
@@ -160,7 +160,9 @@ class LoadMemory():
                 future=True,
             )
         else:
-            raise e.GeneralMemoryError(f"Such database type {url.scheme} is not supported")
+            raise e.GeneralMemoryError(
+                f"Such database type {url.scheme} is not supported"
+            )
         self.get = MemoryBlob(self)
         self.__refresh_state()
         self.__classmap = datamapper.Mapper(self.__engine, self.__metadata)
@@ -202,7 +204,9 @@ class LoadMemory():
         table = assert_table_name(item)
         if table not in self.__metadata.tables or table == "__meta_dataclasses__":
             if table in dir(self) or table == "__meta_dataclasses__":
-                msg = f"Memory {item} cannot be created, such name is reserved by membank"
+                msg = (
+                    f"Memory {item} cannot be created, such name is reserved by membank"
+                )
                 raise e.GeneralMemoryError(msg)
             meths.create_table(table, item, self.__engine)
         classload = self.__classmap.get_class(table)

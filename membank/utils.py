@@ -1,4 +1,5 @@
 """Membank package wide utils."""
+
 import dataclasses as data
 
 from membank import errors as e
@@ -22,7 +23,8 @@ def assert_table_name(instance):
         if not isinstance(field_val, field.type):
             if field.type == float and isinstance(field_val, int):
                 continue
-            msg = f"Field '{field.name}' is not of type {field.type}"
+            msg = "{instance}: has field '{field.name}' of type {type(field_val)} "
+            msg += "but must be of type {field.type}"
             raise e.GeneralMemoryError(msg)
     return get_table_name(instance)
 

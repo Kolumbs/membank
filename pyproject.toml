@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-version = "0.5.4"
+version = "0.5.5"
 name = "membank"
 authors = [{"name" = "Juris Kaminskis", "email" = "juris@kolumbs.net"}]
 readme = "README.md"
@@ -28,3 +28,6 @@ Repository = "https://github.com/Kolumbs/membank"
 
 [tool.setuptools]
 license-files = []
+
+[tool.setuptools.package-data]
+"membank" = ["py.typed"]
