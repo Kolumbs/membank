@@ -7,9 +7,8 @@ import urllib.parse
 import sqlalchemy as sa
 
 import membank.datamethods as meths
-from membank import datamapper
+from membank import datamapper as dm
 from membank import errors as e
-from membank.utils import assert_table_name, get_class_name
 
 
 def bundle_item(item):
@@ -165,7 +164,7 @@ class LoadMemory:
             )
         self.get = MemoryBlob(self)
         self.__refresh_state()
-        self.__classmap = datamapper.Mapper(self.__engine, self.__metadata)
+        self.__classmap = dm.Mapper(self.__engine, self.__metadata)
 
     def __refresh_state(self):
         """Refresh metadata and dataclass."""
@@ -192,7 +191,7 @@ class LoadMemory:
 
     def delete(self, item):
         """Delete item in SQL table."""
-        table = assert_table_name(item)
+        table = dm.assert_table_name(item)
         if table not in self.__metadata.tables:
             msg = f"Memory '{item}' cannot be deleted as table '{table}' does not exist"
             raise e.GeneralMemoryError(msg)
@@ -201,9 +200,9 @@ class LoadMemory:
 
     def put(self, item):
         """Insert item in SQL table."""
-        table = assert_table_name(item)
+        table = dm.assert_table_name(item)
         if table not in self.__metadata.tables or table == "__meta_dataclasses__":
-            if table in dir(self) or table == "__meta_dataclasses__":
+            if table in dir(self) or dm.is_reserved_table_name(table):
                 msg = (
                     f"Memory {item} cannot be created, such name is reserved by membank"
                 )
@@ -225,7 +224,7 @@ class LoadMemory:
 
     def sync(self, obj):
         """Synchronise obj with SQL table."""
-        table = get_class_name(obj)
+        table = dm.get_class_name(obj)
         self.__classmap.put_class(table, obj)
         table = self.__metadata.tables[table]
         meths.sync_table(table, self._get_engine(), obj)
@@ -235,7 +234,7 @@ class LoadMemory:
         """Remove all data and tables."""
         self.__metadata.drop_all(bind=self.__engine)
         self.__metadata.clear()
-        self.__classmap = datamapper.Mapper(self.__engine, self.__metadata)
+        self.__classmap = dm.Mapper(self.__engine, self.__metadata)
 
     def clean_all_data(self):
         """Remove all data and restores memory with all tables."""

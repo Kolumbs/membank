@@ -19,6 +19,7 @@ class CleanData(b.TestCase):
         """Create initial test data."""
         super().setUp()
         self.p = Perforator("test")
+        self.pn = Perforator("test_other")
         self.memory.put(self.p)
         self.assertTrue(self.memory.get.perforator(name="test"))
 
@@ -46,7 +47,12 @@ class CleanData(b.TestCase):
         for stmt in self.commit_stmts:
             with self.subTest(stmt=stmt):
                 self.commit_stmt(stmt)
-                result = self.memory.get.perforator(name="test")
+                for r in self.memory.get("perforator"):
+                    r.name += "_fallback"
+                    self.memory.put(r)
+                result = self.memory.get("perforator")[0]
+                result.name = "test_updated_again"
+                self.memory.put(result)
                 self.memory.put(result)
                 result = self.memory.get.perforator(name="test")
                 self.memory.put(Perforator("some other perforator"))
@@ -60,3 +66,9 @@ class CleanData(b.TestCase):
         with engine.connect() as conn:
             conn.execute(sa.text(stmt))
             conn.commit()
+
+    def execute_stmt(self, stmt):
+        """Execute raw statement."""
+        engine = self.memory._get_engine()
+        with engine.connect() as conn:
+            return conn.execute(sa.text(stmt))
